@@ -12,14 +12,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import json
 import pandas as pd
-from src.config import DATA_DIR, LAST_SEASON
+from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES, LAST_SEASON
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import enrich_player_seasons
 from src.model.predict import project_players, add_gem_score, get_target_level
 
 GEMS_PATH      = DATA_DIR / "board_gems.parquet"
 TRANSFERS_PATH = DATA_DIR / "board_transfers.parquet"
+ENRICHED_PATH  = DATA_DIR / "enriched_2023.parquet"
+APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 
 DISPLAY_COLS = ["player", "pos", "team", "conf", "porpag", "projected_porpag"]
 
@@ -59,7 +62,22 @@ def generate_boards(season: int = LAST_SEASON) -> tuple[pd.DataFrame, pd.DataFra
 
     gems.to_parquet(GEMS_PATH, index=False)
     transfers.to_parquet(TRANSFERS_PATH, index=False)
-    print(f"[board] Saved {len(gems)} gems | {len(transfers)} total transfers")
+
+    # Save inference data for the Streamlit app: enriched 2023 non-HM players
+    # with origin_level set and all feature columns present, but NO destination_level
+    # or projected_porpag (those are computed at runtime from the slider).
+    enriched_app = enriched[
+        (enriched["year"] == season) &
+        (~enriched["conf"].isin(HIGH_MAJOR_CONFERENCES))
+    ].copy()
+    enriched_app["origin_level"] = enriched_app["conf_barthag"]
+    enriched_app.to_parquet(ENRICHED_PATH, index=False)
+
+    app_cfg = {"default_dest_level": round(target_level, 4), "season": season}
+    with open(APP_CONFIG_PATH, "w") as f:
+        json.dump(app_cfg, f)
+
+    print(f"[board] Saved {len(gems)} gems | {len(transfers)} total transfers | {len(enriched_app)} inference rows")
     return gems, transfers
 
 
