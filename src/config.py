@@ -27,7 +27,6 @@ MODEL_RIDGE_PATH = MODEL_DIR / "ridge.pkl"
 MODEL_SCORES_PATH = MODEL_DIR / "scores.json"
 
 # Board
-# Conferences considered "high-major" for visibility-discount logic
-HIGH_MAJOR_CONFERENCES = {
-    "ACC", "Big 12", "Big East", "Big Ten", "Pac-12", "SEC",
-}
+# Actual abbreviations used in the toRvik dataset
+HIGH_MAJOR_CONFERENCES = {"ACC", "B10", "B12", "BE", "P12", "SEC"}
+MID_MAJOR_CONFERENCES  = {"A10", "Amer", "MWC", "WCC", "MAC", "CUSA", "MVC", "CAA", "Horz", "SB", "WAC"}
