@@ -16,10 +16,15 @@ TORVIK_DATA_BASE = "https://raw.githubusercontent.com/andreweatherman/toRvik-dat
 FIRST_SEASON = 2012   # 2011-12 season; earliest year used for training pairs
 LAST_SEASON = 2023    # most recent year in the GitHub data repo
 
-# Model 
-TARGET_METRIC = "porpag"   # primary value metric from toRvik; confirm field name
+# Model
+TARGET_METRIC = "porpag"
 RANDOM_SEED = 1
 CV_N_FOLDS = 5
+
+MODEL_DIR = ROOT / "models"
+MODEL_LGBM_PATH = MODEL_DIR / "lgbm.pkl"
+MODEL_RIDGE_PATH = MODEL_DIR / "ridge.pkl"
+MODEL_SCORES_PATH = MODEL_DIR / "scores.json"
 
 # Board
 # Conferences considered "high-major" for visibility-discount logic
