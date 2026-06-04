@@ -15,6 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+import re
+from urllib.parse import quote
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -43,14 +45,16 @@ ENRICHED_PATH   = DATA_DIR / "enriched_2023.parquet"
 APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 
 BOARD_COLS = [
-    "player", "pos", "team", "conf", "exp",
+    "rank", "player", "profile", "pos", "team", "conf", "exp",
     "g", "porpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
     "rec", "gem_score",
 ]
 
 COL_LABELS = {
+    "rank":              "#",
     "player":            "Player",
+    "profile":           "Profile",
     "pos":               "Position",
     "team":              "Team",
     "conf":              "Conf",
@@ -250,6 +254,16 @@ def main() -> None:
         filtered = filtered.sort_values("projected_porpag", ascending=False)
 
     filtered = filtered.reset_index(drop=True)
+    filtered.insert(0, "rank", range(1, len(filtered) + 1))
+    filtered["profile"] = filtered.apply(
+        lambda r: (
+            f"https://barttorvik.com/playerstat.php"
+            f"?year={int(r['year'])}"
+            f"&p={quote(str(r['player']))}"
+            f"&t={quote(str(r['team']))}"
+        ),
+        axis=1,
+    )
 
     # -----------------------------------------------------------------------
     # Header + summary stats
@@ -295,14 +309,18 @@ def main() -> None:
     col_cfg = {}
     for col in display_cols:
         label = COL_LABELS.get(col, col)
-        if col in ("porpag", "projected_porpag", "gem_score"):
+        if col == "rank":
+            col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
+        elif col == "profile":
+            col_cfg[col] = st.column_config.LinkColumn(label, display_text="View", width="small")
+        elif col in ("porpag", "projected_porpag", "gem_score"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.2f")
         elif col in ("usg", "ortg", "ts", "ast", "to", "ftr"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.1f")
         elif col == "rec":
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.0f")
         elif col == "g":
-            col_cfg[col] = st.column_config.NumberColumn(label, format="%d")
+            col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
         else:
             col_cfg[col] = st.column_config.TextColumn(label)
 
@@ -310,7 +328,7 @@ def main() -> None:
         filtered[display_cols],
         column_config=col_cfg,
         use_container_width=True,
-        hide_index=False,
+        hide_index=True,
         height=520,
     )
 
