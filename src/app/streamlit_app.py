@@ -22,7 +22,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES
+from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES, MID_MAJOR_CONFERENCES
 from src.features.build import FEATURE_COLS
 from src.model.predict import add_gem_score
 from src.model.train import load_lgbm
@@ -108,16 +108,31 @@ FEATURE_LABELS = {
 # ---------------------------------------------------------------------------
 
 @st.cache_data
-def load_enriched() -> tuple[pd.DataFrame, float]:
+def load_enriched() -> tuple[pd.DataFrame, dict]:
     if not ENRICHED_PATH.exists():
         st.error("App data not found. Run `python scripts/generate_board.py` first.")
         st.stop()
     df = pd.read_parquet(ENRICHED_PATH)
-    default_level = 0.77
+
+    # Compute tier levels from per-conference barthag averages in the enriched data.
+    # High-major teams are excluded from enriched_2023 (they're not transfer targets),
+    # so we read the high-major level from app_config instead.
+    conf_levels = df.groupby("conf")["conf_barthag"].first()
+    mid_level = float(conf_levels[conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
+    low_level = float(
+        conf_levels[~conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean()
+    )
+    high_level = 0.77
     if APP_CONFIG_PATH.exists():
         with open(APP_CONFIG_PATH) as f:
-            default_level = json.load(f).get("default_dest_level", 0.77)
-    return df, default_level
+            high_level = json.load(f).get("default_dest_level", 0.77)
+
+    tier_levels = {
+        "Low-Major":  round(low_level, 3),
+        "Mid-Major":  round(mid_level, 3),
+        "High-Major": round(high_level, 3),
+    }
+    return df, tier_levels
 
 
 @st.cache_resource
@@ -184,7 +199,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    enriched, default_level = load_enriched()
+    enriched, tier_levels = load_enriched()
     model = load_model()
 
     # -----------------------------------------------------------------------
@@ -204,17 +219,12 @@ def main() -> None:
 
         st.divider()
 
-        dest_level = st.slider(
-            "Destination competition level",
-            min_value=0.35,
-            max_value=0.90,
-            value=round(default_level, 2),
-            step=0.01,
-            help="Mean Barthag of your target conference. Higher = stronger competition.",
+        dest_tier = st.select_slider(
+            "Project to competition level",
+            options=["Low-Major", "Mid-Major", "High-Major"],
+            value="High-Major",
         )
-        st.caption(
-            "Low-major: ~0.40  |  Mid-major: ~0.55  |  High-major: ~0.77"
-        )
+        dest_level = tier_levels[dest_tier]
 
         st.divider()
 
@@ -227,17 +237,13 @@ def main() -> None:
         conf_filter  = st.multiselect("Conference", all_confs)
         class_filter = st.multiselect("Class", all_classes)
         min_games    = st.slider("Min games played", 0, 35, 10)
-        min_proj     = st.slider(
-            "Min projected PORPAG",
-            min_value=-3.0, max_value=4.0, value=0.0, step=0.1,
-        )
 
     # -----------------------------------------------------------------------
     # Project + filter
     # -----------------------------------------------------------------------
     projected = project(enriched, dest_level, model)
 
-    mask = (projected["g"] >= min_games) & (projected["projected_porpag"] >= min_proj)
+    mask = projected["g"] >= min_games
     if pos_filter:
         mask &= projected["pos"].isin(pos_filter)
     if conf_filter:
@@ -271,7 +277,7 @@ def main() -> None:
     st.title("Mid-Major Scouting Board")
     st.caption(
         f"2022-23 season  |  {len(filtered):,} players  |  "
-        f"destination level {dest_level:.3f}"
+        f"projecting to {dest_tier} (Barthag {dest_level:.3f})"
     )
 
     m1, m2, m3, m4 = st.columns(4)
