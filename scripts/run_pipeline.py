@@ -1,5 +1,5 @@
 """
-CLI entry point: fetch → features → train.
+CLI entry point: fetch -> features -> train.
 Run from the repo root: python scripts/run_pipeline.py
 """
 
@@ -9,7 +9,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.fetch import fetch_player_seasons, fetch_transfers, fetch_teams
-from src.features.build import build_transfer_pairs, get_feature_matrix
+from src.features.build import (
+    enrich_player_seasons,
+    build_transfer_pairs,
+    get_feature_matrix,
+    save_pairs,
+    load_pairs,
+)
 from src.model.train import train_ridge, train_lgbm
 
 
@@ -17,14 +23,16 @@ def main() -> None:
     print("=== Step 1: Fetch data ===")
     player_seasons = fetch_player_seasons()
     transfers = fetch_transfers()
-    fetch_teams()
+    teams = fetch_teams()
 
     print("\n=== Step 2: Build features ===")
-    pairs = build_transfer_pairs(player_seasons, transfers)
-    X, y = get_feature_matrix(pairs)
-    groups = pairs["player_id"]
+    pairs = load_pairs()
+    if pairs is None:
+        enriched = enrich_player_seasons(player_seasons, teams)
+        pairs = build_transfer_pairs(enriched, transfers)
+        save_pairs(pairs)
 
-    print(f"Feature matrix: {X.shape[0]:,} rows × {X.shape[1]} cols")
+    X, y, groups = get_feature_matrix(pairs)
 
     print("\n=== Step 3: Train models ===")
     train_ridge(X, y, groups)
