@@ -11,22 +11,23 @@ import numpy as np
 from ..config import TARGET_METRIC
 
 # Origin-season features used as model inputs
+# Exact column names as they appear in the toRvik-data player season parquet
 FEATURE_COLS = [
     # Usage / efficiency
-    "usage_pct", "ortg", "ts_pct", "efg_pct",
-    "ast_pct", "tov_pct", "orb_pct", "drb_pct",
-    "blk_pct", "stl_pct", "ftr", "three_pa_rate", "ft_pct",
+    "usg", "ortg", "ts", "efg",
+    "ast", "to", "oreb_rate", "dreb_rate",
+    "blk", "stl", "ftr", "three_pa_rate", "ft_pct",
     # Volume / context
-    "min_pct", "possessions", "games",
+    "min", "mpg", "g",
     # Player profile
-    "experience",   # numeric: 1=Fr, 2=So, 3=Jr, 4=Sr
-    "height_in",
-    # Team / competition context
-    "team_adj_em", "team_rank", "conf_adj_em", "sos",
-    TARGET_METRIC,  # origin-season value
+    "exp_num",    # encoded from exp string: Fr=1, So=2, Jr=3, Sr=4, Gr=5
+    "inches",
+    # Team / competition context (joined from ratings table)
+    "team_barthag", "team_adj_o", "team_adj_d", "team_ov_sos",
+    TARGET_METRIC,
     # Competition delta (critical feature)
-    "origin_level",       # numeric ranking of origin conference
-    "destination_level",  # numeric ranking of destination conference
+    "origin_level",
+    "destination_level",
 ]
 
 

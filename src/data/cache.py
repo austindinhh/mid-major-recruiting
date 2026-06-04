@@ -12,4 +12,4 @@ def load(path: Path) -> pd.DataFrame | None:
 def save(df: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path, index=False)
-    print(f"[cache] Saved {len(df):,} rows → {path.name}")
+    print(f"[cache] Saved {len(df):,} rows to {path.name}")

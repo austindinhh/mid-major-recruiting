@@ -1,29 +1,37 @@
 """
-Pulls player-seasons, transfer histories, and team metadata from the toRvik API.
-Falls back to direct BartTorvik scraping if the API is unreachable.
-All results are written to the local parquet cache via cache.py.
+Fetches player-seasons, derived transfer pairs, and team ratings from the
+toRvik-data GitHub repository (static parquet/CSV files).
+
+The live toRvik API (api.cbbstat.com) is no longer resolving; all data is
+served as static files instead. Transfers are reconstructed by detecting
+year-over-year team changes for the same player ID in the player season table.
 """
 
+import io
 import time
 import requests
 import pandas as pd
 
-from ..config import TORVIK_BASE, PLAYER_SEASONS_PATH, TRANSFERS_PATH, TEAMS_PATH
+from ..config import (
+    TORVIK_DATA_BASE,
+    FIRST_SEASON,
+    LAST_SEASON,
+    PLAYER_SEASONS_PATH,
+    TRANSFERS_PATH,
+    TEAMS_PATH,
+)
 from .cache import load, save
 
 _SESSION = requests.Session()
 _SESSION.headers.update({"User-Agent": "mid-major-recruiting-research/0.1"})
-
-FIRST_SEASON = 2012   # 2011-12 season
-_RATE_LIMIT_DELAY = 0.5  # seconds between requests
+_RATE_LIMIT_DELAY = 0.3
 
 
-def _get(endpoint: str, params: dict | None = None) -> dict | list:
-    url = f"{TORVIK_BASE}{endpoint}"
-    resp = _SESSION.get(url, params=params, timeout=15)
+def _get_bytes(url: str) -> bytes:
+    resp = _SESSION.get(url, timeout=30)
     resp.raise_for_status()
     time.sleep(_RATE_LIMIT_DELAY)
-    return resp.json()
+    return resp.content
 
 
 def fetch_player_seasons(force: bool = False) -> pd.DataFrame:
@@ -32,19 +40,28 @@ def fetch_player_seasons(force: bool = False) -> pd.DataFrame:
         if cached is not None:
             return cached
 
-    print("[fetch] Pulling player seasons from toRvik...")
-    # TODO: replace with real toRvik endpoint once confirmed Day 1
-    raise NotImplementedError("Verify toRvik endpoint on Day 1 before implementing")
+    print("[fetch] Downloading player season stats from toRvik-data...")
+    url = f"{TORVIK_DATA_BASE}/player_season/all.parquet"
+    raw = _get_bytes(url)
+    df = pd.read_parquet(io.BytesIO(raw))
 
+    # The combined all.parquet may lag a season; fetch any missing years individually
+    latest = int(df["year"].max())
+    for year in range(latest + 1, LAST_SEASON + 1):
+        url_year = f"{TORVIK_DATA_BASE}/player_season/{year}/all_{year}.parquet"
+        try:
+            raw_year = _get_bytes(url_year)
+            frame = pd.read_parquet(io.BytesIO(raw_year))
+            df = pd.concat([df, frame], ignore_index=True)
+            print(f"  appended year {year}: {len(frame)} players")
+        except requests.HTTPError:
+            break
 
-def fetch_transfers(force: bool = False) -> pd.DataFrame:
-    if not force:
-        cached = load(TRANSFERS_PATH)
-        if cached is not None:
-            return cached
+    df = df[df["year"] >= FIRST_SEASON].reset_index(drop=True)
+    print(f"[fetch] {len(df):,} player-seasons loaded (years {FIRST_SEASON}-{int(df['year'].max())})")
 
-    print("[fetch] Pulling transfer histories from toRvik...")
-    raise NotImplementedError("Verify toRvik endpoint on Day 1 before implementing")
+    save(df, PLAYER_SEASONS_PATH)
+    return df
 
 
 def fetch_teams(force: bool = False) -> pd.DataFrame:
@@ -53,5 +70,65 @@ def fetch_teams(force: bool = False) -> pd.DataFrame:
         if cached is not None:
             return cached
 
-    print("[fetch] Pulling team metadata from toRvik...")
-    raise NotImplementedError("Verify toRvik endpoint on Day 1 before implementing")
+    print("[fetch] Downloading team ratings from toRvik-data...")
+    frames = []
+    for year in range(FIRST_SEASON, LAST_SEASON + 1):
+        url = f"{TORVIK_DATA_BASE}/ratings/ratings_{year}.csv"
+        try:
+            raw = _get_bytes(url)
+            frame = pd.read_csv(io.BytesIO(raw))
+            # Some year CSVs have a leading unnamed row-number column; drop it
+            if frame.columns[0].startswith("Unnamed") or frame.columns[0] == "":
+                frame = frame.drop(columns=frame.columns[0])
+            frames.append(frame)
+            print(f"  year {year}: {len(frame)} teams")
+        except requests.HTTPError as exc:
+            print(f"  year {year}: skipped ({exc})")
+
+    df = pd.concat(frames, ignore_index=True)
+    print(f"[fetch] {len(df):,} team-seasons loaded")
+    save(df, TEAMS_PATH)
+    return df
+
+
+def fetch_transfers(force: bool = False) -> pd.DataFrame:
+    """
+    Reconstructs transfer pairs from player season data.
+    A transfer is any instance where the same player ID appears at a different
+    team in a later season (gap of 1 or 2 years to capture sit-out transfers).
+    """
+    if not force:
+        cached = load(TRANSFERS_PATH)
+        if cached is not None:
+            return cached
+
+    print("[fetch] Deriving transfer pairs from player season data...")
+    seasons = fetch_player_seasons()
+
+    # Keep only the columns needed for the join
+    slim = (
+        seasons[["id", "player", "team", "conf", "year"]]
+        .drop_duplicates()
+        .sort_values(["id", "year"])
+    )
+
+    # Self-join: each season paired with later seasons for the same player
+    origin = slim.rename(columns={"team": "from_team", "conf": "from_conf", "year": "season"})
+    dest = slim.rename(columns={"team": "to_team", "conf": "to_conf", "year": "dest_season"})
+
+    pairs = origin.merge(dest, on=["id", "player"])
+    pairs = pairs[
+        (pairs["dest_season"] - pairs["season"]).between(1, 2)
+        & (pairs["from_team"] != pairs["to_team"])
+    ].reset_index(drop=True)
+
+    # Keep only the earliest destination per (id, season) to avoid duplicates
+    pairs = (
+        pairs.sort_values("dest_season")
+        .drop_duplicates(subset=["id", "season"])
+        .reset_index(drop=True)
+    )
+
+    print(f"[fetch] {len(pairs):,} transfer pairs derived")
+    save(pairs, TRANSFERS_PATH)
+    return pairs
