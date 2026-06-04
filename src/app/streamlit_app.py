@@ -38,6 +38,55 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
+# Illinois brand CSS
+#
+# Streamlit's textColor is a single global value, so sidebar text (rendered on
+# the dark-blue #13294B background) must be overridden to white via injection.
+# Everything else — button/slider/active colors — comes from config.toml.
+# ---------------------------------------------------------------------------
+
+_ILLINOIS_CSS = """
+<style>
+/* --- Sidebar: white text on Illinois blue background --- */
+section[data-testid="stSidebar"] * {
+    color: #FFFFFF !important;
+}
+/* Restore dark text inside input widgets so they stay readable */
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] select {
+    color: #13294B !important;
+}
+/* Orange dividers in sidebar */
+section[data-testid="stSidebar"] hr {
+    border-color: #FF5F05 !important;
+    opacity: 0.6;
+}
+
+/* --- Metric cards: orange left accent bar --- */
+[data-testid="metric-container"] {
+    border-left: 4px solid #FF5F05;
+    padding-left: 0.6rem;
+}
+
+/* --- Main dividers --- */
+hr {
+    border-color: #FF5F05 !important;
+    opacity: 0.4;
+}
+
+/* --- Download button --- */
+[data-testid="stDownloadButton"] > button {
+    background-color: #FF5F05 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+}
+[data-testid="stDownloadButton"] > button:hover {
+    background-color: #cc4c04 !important;
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
@@ -173,7 +222,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
         .sort_values()  # ascending so most positive is at top of horizontal chart
     )
 
-    colors = ["#c0392b" if v < 0 else "#27ae60" for v in series.values]
+    colors = ["#c0392b" if v < 0 else "#FF5F05" for v in series.values]
     fig = go.Figure(
         go.Bar(
             x=series.values,
@@ -187,11 +236,14 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
         xaxis_title="Contribution to projected PORPAG",
         height=360,
         margin=dict(l=0, r=10, t=40, b=20),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        font=dict(size=12),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        font=dict(size=12, color="#13294B"),
+        title_font=dict(color="#13294B"),
+        xaxis=dict(color="#13294B"),
+        yaxis=dict(color="#13294B"),
     )
-    fig.add_vline(x=0, line_color="#333333", line_width=0.8)
+    fig.add_vline(x=0, line_color="#13294B", line_width=0.8)
     return fig
 
 # ---------------------------------------------------------------------------
@@ -199,6 +251,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    st.markdown(_ILLINOIS_CSS, unsafe_allow_html=True)
     enriched, tier_levels = load_enriched()
     model = load_model()
 
