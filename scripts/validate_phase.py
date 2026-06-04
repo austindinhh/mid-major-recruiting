@@ -97,8 +97,37 @@ def validate_phase2() -> bool:
 
 
 def validate_phase3() -> bool:
-    print("Phase 3: model (not yet implemented)")
-    return True
+    import json
+    from src.config import MODEL_LGBM_PATH, MODEL_RIDGE_PATH, MODEL_SCORES_PATH
+
+    print("Phase 3: models")
+    ok = True
+
+    ok &= _check("lgbm.pkl exists", MODEL_LGBM_PATH.exists())
+    ok &= _check("ridge.pkl exists", MODEL_RIDGE_PATH.exists())
+    ok &= _check("scores.json exists", MODEL_SCORES_PATH.exists())
+
+    if not MODEL_SCORES_PATH.exists():
+        return ok
+
+    with open(MODEL_SCORES_PATH) as f:
+        scores = json.load(f)
+
+    naive_mae = scores["naive"]["mae"]
+    ridge_mae = scores["ridge"]["mae"]
+    lgbm_mae  = scores["lgbm"]["mae"]
+
+    ok &= _check(f"LightGBM beats naive (lgbm={lgbm_mae:.3f} < naive={naive_mae:.3f})", lgbm_mae < naive_mae)
+    ok &= _check(f"Ridge beats naive   (ridge={ridge_mae:.3f} < naive={naive_mae:.3f})", ridge_mae < naive_mae)
+    # LightGBM should be within 5% of Ridge (they can tie on small datasets)
+    ok &= _check(
+        f"LightGBM within 5% of Ridge MAE (got {abs(lgbm_mae - ridge_mae) / ridge_mae:.1%})",
+        abs(lgbm_mae - ridge_mae) / ridge_mae < 0.05,
+    )
+    ok &= _check(f"LightGBM MAE < 0.95 (got {lgbm_mae:.3f})", lgbm_mae < 0.95)
+
+    print(f"\n  Naive MAE={naive_mae:.3f} | Ridge MAE={ridge_mae:.3f} | LightGBM MAE={lgbm_mae:.3f}")
+    return ok
 
 
 PHASES = {1: validate_phase1, 2: validate_phase2, 3: validate_phase3}
