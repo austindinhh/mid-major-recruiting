@@ -114,7 +114,7 @@ BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
     "g", "porpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
-    "rec", "gem_score",
+    "rec", "pick", "gem_score",
 ]
 
 COL_LABELS = {
@@ -135,6 +135,7 @@ COL_LABELS = {
     "to":                "TO%",
     "ftr":               "FTR",
     "rec":               "Recruit",
+    "pick":              "Draft Pick",
     "gem_score":         "Gem Score",
 }
 
@@ -405,6 +406,7 @@ def main() -> None:
         conf_filter  = st.multiselect("Conference", all_confs)
         class_filter = st.multiselect("Class", all_classes)
         min_games    = st.slider("Min games played", 0, 35, 10)
+        nba_only     = st.toggle("NBA Draft picks only")
 
         st.divider()
         st.caption(
@@ -417,6 +419,8 @@ def main() -> None:
     projected = project(enriched, dest_level, model)
 
     mask = projected["g"] >= min_games
+    if nba_only:
+        mask &= projected["pick"].fillna(0) > 0
     if pos_filter:
         mask &= projected["pos"].isin(pos_filter)
     if conf_filter:
@@ -432,17 +436,20 @@ def main() -> None:
     else:
         filtered = filtered.sort_values("projected_porpag", ascending=False)
 
-    filtered = filtered.reset_index(drop=True)
+    filtered = filtered.reset_index(drop=True).copy()
     filtered.insert(0, "rank", range(1, len(filtered) + 1))
-    filtered["profile"] = filtered.apply(
-        lambda r: (
-            f"https://barttorvik.com/playerstat.php"
-            f"?year={int(r['year'])}"
-            f"&p={quote(str(r['player']))}"
-            f"&t={quote(str(r['team']))}"
-        ),
-        axis=1,
-    )
+    if filtered.empty:
+        filtered["profile"] = pd.Series(dtype="object")
+    else:
+        filtered["profile"] = filtered.apply(
+            lambda r: (
+                f"https://barttorvik.com/playerstat.php"
+                f"?year={int(r['year'])}"
+                f"&p={quote(str(r['player']))}"
+                f"&t={quote(str(r['team']))}"
+            ),
+            axis=1,
+        )
 
     # -----------------------------------------------------------------------
     # Header + summary stats
@@ -496,7 +503,7 @@ def main() -> None:
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.2f")
         elif col in ("usg", "ortg", "ts", "ast", "to", "ftr"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.1f")
-        elif col == "rec":
+        elif col in ("rec", "pick"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.0f")
         elif col == "g":
             col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
