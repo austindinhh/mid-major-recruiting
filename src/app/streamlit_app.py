@@ -90,7 +90,6 @@ hr {
 # Constants
 # ---------------------------------------------------------------------------
 
-ENRICHED_PATH   = DATA_DIR / "enriched_2023.parquet"
 APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 
 BOARD_COLS = [
@@ -157,24 +156,28 @@ FEATURE_LABELS = {
 # ---------------------------------------------------------------------------
 
 @st.cache_data
-def load_enriched() -> tuple[pd.DataFrame, dict]:
-    if not ENRICHED_PATH.exists():
-        st.error("App data not found. Run `python scripts/generate_board.py` first.")
-        st.stop()
-    df = pd.read_parquet(ENRICHED_PATH)
+def load_app_config() -> dict:
+    if not APP_CONFIG_PATH.exists():
+        return {"default_dest_level": 0.77, "default_season": 2023, "available_seasons": [2023]}
+    with open(APP_CONFIG_PATH) as f:
+        return json.load(f)
 
-    # Compute tier levels from per-conference barthag averages in the enriched data.
-    # High-major teams are excluded from enriched_2023 (they're not transfer targets),
-    # so we read the high-major level from app_config instead.
+
+@st.cache_data
+def load_enriched(season: int) -> tuple[pd.DataFrame, dict]:
+    path = DATA_DIR / f"enriched_{season}.parquet"
+    if not path.exists():
+        st.error(f"Data for {season} not found. Run `python scripts/generate_board.py` first.")
+        st.stop()
+    df = pd.read_parquet(path)
+
+    # Tier levels computed from conference barthag averages in the selected season's data.
+    # High-major teams are excluded from enriched files (they're not transfer targets),
+    # so the high-major level comes from app_config.
     conf_levels = df.groupby("conf")["conf_barthag"].first()
     mid_level = float(conf_levels[conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
-    low_level = float(
-        conf_levels[~conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean()
-    )
-    high_level = 0.77
-    if APP_CONFIG_PATH.exists():
-        with open(APP_CONFIG_PATH) as f:
-            high_level = json.load(f).get("default_dest_level", 0.77)
+    low_level = float(conf_levels[~conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
+    high_level = load_app_config().get("default_dest_level", 0.77)
 
     tier_levels = {
         "Low-Major":  round(low_level, 3),
@@ -250,16 +253,30 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
 # App
 # ---------------------------------------------------------------------------
 
+def _season_label(year: int) -> str:
+    return f"{year - 1}-{str(year)[2:]}"
+
+
 def main() -> None:
     st.markdown(_ILLINOIS_CSS, unsafe_allow_html=True)
-    enriched, tier_levels = load_enriched()
     model = load_model()
+
+    cfg = load_app_config()
+    available_seasons = sorted(cfg.get("available_seasons", [2023]), reverse=True)
 
     # -----------------------------------------------------------------------
     # Sidebar
     # -----------------------------------------------------------------------
     with st.sidebar:
         st.header("Controls")
+
+        season_labels = {_season_label(y): y for y in available_seasons}
+        selected_label = st.selectbox(
+            "Season",
+            options=list(season_labels.keys()),
+            index=0,
+        )
+        season = season_labels[selected_label]
 
         board_mode = st.radio(
             "Board type",
@@ -271,6 +288,8 @@ def main() -> None:
         )
 
         st.divider()
+
+        enriched, tier_levels = load_enriched(season)
 
         dest_tier = st.select_slider(
             "Project to competition level",
@@ -290,6 +309,11 @@ def main() -> None:
         conf_filter  = st.multiselect("Conference", all_confs)
         class_filter = st.multiselect("Class", all_classes)
         min_games    = st.slider("Min games played", 0, 35, 10)
+
+        st.divider()
+        st.caption(
+            "Data source: [toRvik-data](https://github.com/andreweatherman/toRvik-data)"
+        )
 
     # -----------------------------------------------------------------------
     # Project + filter
@@ -329,7 +353,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     st.title("Mid-Major Scouting Board")
     st.caption(
-        f"2022-23 season  |  {len(filtered):,} players  |  "
+        f"{selected_label} season  |  {len(filtered):,} players  |  "
         f"projecting to {dest_tier} (Barthag {dest_level:.3f})"
     )
 
