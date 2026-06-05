@@ -47,15 +47,22 @@ st.set_page_config(
 
 _ILLINOIS_CSS = """
 <style>
-/* --- Sidebar: white text on Illinois blue background --- */
+/* --- Sidebar background: Illinois blue.
+   secondaryBackgroundColor in config.toml is now a light value so that
+   widget backgrounds across the whole app stay readable. The sidebar color
+   is set here explicitly instead. --- */
+section[data-testid="stSidebar"] {
+    background-color: #13294B !important;
+}
+
+/* All sidebar text: white (labels, headers, captions on dark bg) */
 section[data-testid="stSidebar"] * {
     color: #FFFFFF !important;
 }
 
-/* Restore dark text inside Streamlit widget internals.
-   These components render on white/light backgrounds so their
-   text must be dark. Targets both native inputs and the custom
-   data-baseweb components Streamlit uses for selectbox/multiselect. */
+/* Widget internals inside the sidebar render on light backgrounds
+   (their own background comes from the theme, not the sidebar).
+   Restore dark text so selected values remain readable. */
 section[data-testid="stSidebar"] input,
 section[data-testid="stSidebar"] select,
 section[data-testid="stSidebar"] textarea,
