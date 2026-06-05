@@ -169,6 +169,84 @@ FEATURE_LABELS = {
     "pos_num":          "Position",
 }
 
+# Hover tooltip text for each stat shown in the player detail section.
+_STAT_HELP = {
+    "porpag": (
+        "Points Over Replacement Per Adjusted Game. "
+        "How many points above a replacement-level player this player contributes per adjusted game. "
+        "Below 0: below replacement. 0-1: bench rotation. 1-2: solid contributor. "
+        "2-3: starter. 3+: star. 4+: elite."
+    ),
+    "projected_porpag": (
+        "Estimated PORPAG if this player transferred to the selected competition level. "
+        "The delta shows the projected change from current production. "
+        "Positive means the model expects more value at the new level."
+    ),
+    "usg": (
+        "Usage Rate. Percentage of team possessions used while on the floor, "
+        "including shots, free throws, and turnovers. "
+        "Average: about 20%. Primary option: 25% or higher. Role player: below 15%."
+    ),
+    "ortg": (
+        "Offensive Rating. Points scored per 100 possessions. "
+        "Measures per-possession efficiency, not per-game output. "
+        "Average D1: about 100. Good: 110 or higher. Elite: 120 or higher."
+    ),
+    "ts": (
+        "True Shooting Percentage. Shooting efficiency combining 2-pointers, 3-pointers, "
+        "and free throws. More complete than field goal percentage because it weights "
+        "all shot types appropriately. "
+        "Average: about 52%. Good: 57% or higher. Elite: 62% or higher."
+    ),
+    "ast": (
+        "Assist Rate. Percentage of teammate field goals this player assisted while on the floor. "
+        "Captures playmaking regardless of pace or minutes. "
+        "Average: about 15%. Good playmaker: 25% or higher. Elite: 35% or higher. "
+        "One of the skills that translates most reliably across competition levels."
+    ),
+    "ftr": (
+        "Free Throw Rate. Free throw attempts per 100 field goal attempts. "
+        "Measures how often a player draws fouls. "
+        "Low: below 20. Average: about 35. High: 50 or higher. "
+        "Getting to the line is a repeatable skill that carries across levels."
+    ),
+    "to": (
+        "Turnover Rate. Turnovers per 100 possessions used. Lower is better. "
+        "Disciplined: below 12%. Average: about 15%. Concern: above 20%. "
+        "Read alongside usage; players with higher usage tend to turn it over more."
+    ),
+    "dreb_rate": (
+        "Defensive Rebound Rate. Percentage of available defensive rebounds grabbed "
+        "while on the floor. "
+        "Average D1: about 20%. Good big: 25% or higher. Elite: 30% or higher."
+    ),
+    "blk": (
+        "Block Rate. Percentage of opponent 2-point attempts blocked while on the floor. "
+        "Average: 2-3%. Good rim protector: 5% or higher. Elite: 8% or higher."
+    ),
+    "oreb_rate": (
+        "Offensive Rebound Rate. Percentage of available offensive rebounds grabbed "
+        "while on the floor. "
+        "Average: 8-10%. Good offensive rebounder: 12% or higher."
+    ),
+    "stl": (
+        "Steal Rate. Percentage of opponent possessions ending in a steal while on the floor. "
+        "Average: 1.5-2%. Good: 2.5% or higher. Elite: 3.5% or higher."
+    ),
+    "gem_score": (
+        "Projected PORPAG multiplied by the player's obscurity score. "
+        "Rewards players projected to produce at the destination level "
+        "who are currently under the radar. No fixed ceiling; use it for relative "
+        "ranking on the board, not as an absolute grade."
+    ),
+    "obscurity": (
+        "How under-the-radar this player is. "
+        "0 = fully visible (high-major program, top recruit). "
+        "1 = completely off the radar (unranked recruit, low-major conference). "
+        "Calculated from recruiting rank and conference visibility."
+    ),
+}
+
 # ---------------------------------------------------------------------------
 # Cached loaders
 # ---------------------------------------------------------------------------
@@ -475,35 +553,36 @@ def main() -> None:
         st.markdown("**Production**")
         pc1, pc2 = st.columns(2)
         with pc1:
-            st.metric("Current PORPAG", f"{row['porpag']:.2f}")
+            st.metric("Current PORPAG", f"{row['porpag']:.2f}", help=_STAT_HELP["porpag"])
         with pc2:
             delta = row["projected_porpag"] - row["porpag"]
             st.metric(
                 "Projected PORPAG",
                 f"{row['projected_porpag']:.2f}",
                 delta=f"{delta:+.2f}",
+                help=_STAT_HELP["projected_porpag"],
             )
 
         st.markdown("**Offensive profile**")
         oc1, oc2, oc3 = st.columns(3)
         with oc1:
-            st.metric("USG%", f"{row['usg']:.1f}")
-            st.metric("ORtg", f"{row['ortg']:.0f}")
+            st.metric("USG%", f"{row['usg']:.1f}", help=_STAT_HELP["usg"])
+            st.metric("ORtg", f"{row['ortg']:.0f}", help=_STAT_HELP["ortg"])
         with oc2:
-            st.metric("TS%", f"{row['ts']:.1f}")
-            st.metric("AST%", f"{row['ast']:.1f}")
+            st.metric("TS%", f"{row['ts']:.1f}", help=_STAT_HELP["ts"])
+            st.metric("AST%", f"{row['ast']:.1f}", help=_STAT_HELP["ast"])
         with oc3:
-            st.metric("FTR", f"{row['ftr']:.1f}")
-            st.metric("TO%", f"{row['to']:.1f}")
+            st.metric("FTR", f"{row['ftr']:.1f}", help=_STAT_HELP["ftr"])
+            st.metric("TO%", f"{row['to']:.1f}", help=_STAT_HELP["to"])
 
         st.markdown("**Defensive profile**")
         dc1, dc2 = st.columns(2)
         with dc1:
-            st.metric("Dreb%", f"{row.get('dreb_rate', float('nan')):.1f}")
-            st.metric("BLK%", f"{row.get('blk', float('nan')):.1f}")
+            st.metric("Dreb%", f"{row.get('dreb_rate', float('nan')):.1f}", help=_STAT_HELP["dreb_rate"])
+            st.metric("BLK%", f"{row.get('blk', float('nan')):.1f}", help=_STAT_HELP["blk"])
         with dc2:
-            st.metric("Oreb%", f"{row.get('oreb_rate', float('nan')):.1f}")
-            st.metric("STL%", f"{row.get('stl', float('nan')):.1f}")
+            st.metric("Oreb%", f"{row.get('oreb_rate', float('nan')):.1f}", help=_STAT_HELP["oreb_rate"])
+            st.metric("STL%", f"{row.get('stl', float('nan')):.1f}", help=_STAT_HELP["stl"])
 
     with right:
         try:
@@ -521,9 +600,9 @@ def main() -> None:
             st.markdown("**Obscurity breakdown**")
             oc1, oc2, oc3 = st.columns(3)
             with oc1:
-                st.metric("Gem Score", f"{row.get('gem_score', 0):.3f}")
+                st.metric("Gem Score", f"{row.get('gem_score', 0):.3f}", help=_STAT_HELP["gem_score"])
             with oc2:
-                st.metric("Obscurity", f"{row.get('obscurity', 0):.2f}")
+                st.metric("Obscurity", f"{row.get('obscurity', 0):.2f}", help=_STAT_HELP["obscurity"])
             with oc3:
                 st.metric("Conference", row["conf"])
 
