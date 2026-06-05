@@ -1,6 +1,6 @@
 {
-  "default_dest_level": 0.7698,
-  "default_season": 2023,
+  "default_dest_level": 0.8258,
+  "default_season": 2026,
   "available_seasons": [
     2012,
     2013,
@@ -13,6 +13,9 @@
     2020,
     2021,
     2022,
-    2023
+    2023,
+    2024,
+    2025,
+    2026
   ]
 }

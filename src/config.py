@@ -14,7 +14,7 @@ TRAINING_PAIRS_PATH = DATA_DIR / "training_pairs.parquet"
 # served as static files from the companion GitHub repo instead.
 TORVIK_DATA_BASE = "https://raw.githubusercontent.com/andreweatherman/toRvik-data/main"
 FIRST_SEASON = 2012   # 2011-12 season; earliest year used for training pairs
-LAST_SEASON = 2023    # most recent year in the GitHub data repo
+LAST_SEASON = 2026    # extended via direct BartTorvik scrape for 2024-2026
 
 # Model
 TARGET_METRIC = "porpag"
