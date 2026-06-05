@@ -51,11 +51,22 @@ _ILLINOIS_CSS = """
 section[data-testid="stSidebar"] * {
     color: #FFFFFF !important;
 }
-/* Restore dark text inside input widgets so they stay readable */
+
+/* Restore dark text inside Streamlit widget internals.
+   These components render on white/light backgrounds so their
+   text must be dark. Targets both native inputs and the custom
+   data-baseweb components Streamlit uses for selectbox/multiselect. */
 section[data-testid="stSidebar"] input,
-section[data-testid="stSidebar"] select {
+section[data-testid="stSidebar"] select,
+section[data-testid="stSidebar"] textarea,
+section[data-testid="stSidebar"] [data-baseweb="select"] *,
+section[data-testid="stSidebar"] [data-baseweb="input"] *,
+section[data-testid="stSidebar"] [data-baseweb="tag"] *,
+section[data-testid="stSidebar"] [role="listbox"] *,
+section[data-testid="stSidebar"] [role="option"] * {
     color: #13294B !important;
 }
+
 /* Orange dividers in sidebar */
 section[data-testid="stSidebar"] hr {
     border-color: #FF5F05 !important;
