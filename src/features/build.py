@@ -14,8 +14,9 @@ from ..config import TARGET_METRIC, TRAINING_PAIRS_PATH
 
 # Exact column names as they appear after enrichment
 FEATURE_COLS = [
-    # Core value metric at origin (the single most predictive feature)
+    # Core value metrics at origin
     TARGET_METRIC,
+    "dporpag",            # defensive production (two-way value signal)
     # Usage / role
     "usg", "min", "mpg", "g",
     # Offensive efficiency

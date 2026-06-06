@@ -112,7 +112,7 @@ APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
-    "g", "porpag", "projected_porpag",
+    "g", "porpag", "dporpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
     "rec", "pick", "gem_score",
 ]
@@ -127,6 +127,7 @@ COL_LABELS = {
     "exp":               "Class",
     "g":                 "G",
     "porpag":            "PORPAG",
+    "dporpag":           "Def PORPAG",
     "projected_porpag":  "Proj PORPAG",
     "usg":               "USG%",
     "ortg":              "ORtg",
@@ -157,6 +158,7 @@ FEATURE_LABELS = {
     "ast":              "Assist rate",
     "team_ov_sos":      "Strength of schedule",
     "oreb_rate":        "Offensive rebounding rate",
+    "dporpag":          "Defensive production (Def PORPAG)",
     "blk":              "Block rate",
     "stl":              "Steal rate",
     "ftr":              "Free throw rate",
@@ -215,6 +217,12 @@ _STAT_HELP = {
         "Turnover Rate. Turnovers per 100 possessions used. Lower is better. "
         "Disciplined: below 12%. Average: about 15%. Concern: above 20%. "
         "Read alongside usage; players with higher usage tend to turn it over more."
+    ),
+    "dporpag": (
+        "Defensive Points Over Replacement Per Adjusted Game. "
+        "The defensive counterpart to PORPAG. Measures defensive stops, rim protection, "
+        "and defensive rebounding above a replacement-level defender. "
+        "0-1: average. 2+: above average. 3+: strong defender. 4+: elite two-way value."
     ),
     "dreb_rate": (
         "Defensive Rebound Rate. Percentage of available defensive rebounds grabbed "
@@ -377,7 +385,7 @@ def main() -> None:
 
         board_mode = st.radio(
             "Board type",
-            ["Hidden Gems", "Best Transfers"],
+            ["Best Transfers", "Hidden Gems"],
             help=(
                 "Hidden Gems weights projected value by how unscouted the player is. "
                 "Best Transfers ranks purely by projected PORPAG at your target level."
@@ -499,7 +507,7 @@ def main() -> None:
             col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
         elif col == "profile":
             col_cfg[col] = st.column_config.LinkColumn(label, display_text="View", width="small")
-        elif col in ("porpag", "projected_porpag", "gem_score"):
+        elif col in ("porpag", "dporpag", "projected_porpag", "gem_score"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.2f")
         elif col in ("usg", "ortg", "ts", "ast", "to", "ftr"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.1f")
@@ -583,6 +591,7 @@ def main() -> None:
             st.metric("TO%", f"{row['to']:.1f}", help=_STAT_HELP["to"])
 
         st.markdown("**Defensive profile**")
+        st.metric("Def PORPAG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
         dc1, dc2 = st.columns(2)
         with dc1:
             st.metric("Dreb%", f"{row.get('dreb_rate', float('nan')):.1f}", help=_STAT_HELP["dreb_rate"])
