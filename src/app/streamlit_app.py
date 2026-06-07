@@ -158,6 +158,7 @@ FEATURE_LABELS = {
     "ast":              "Assist rate",
     "team_ov_sos":      "Strength of schedule",
     "oreb_rate":        "Offensive rebounding rate",
+    "weight_lbs":       "Body weight (lbs)",
     "dporpag":          "Defensive production (Def PORPAG)",
     "blk":              "Block rate",
     "stl":              "Steal rate",
@@ -217,6 +218,12 @@ _STAT_HELP = {
         "Turnover Rate. Turnovers per 100 possessions used. Lower is better. "
         "Disciplined: below 12%. Average: about 15%. Concern: above 20%. "
         "Read alongside usage; players with higher usage tend to turn it over more."
+    ),
+    "weight_lbs": (
+        "Player weight in pounds, sourced from Sports Reference. "
+        "Heavier players at a given height tend to handle the physical demands "
+        "of high-major play better. N/A means the player is not yet in the "
+        "Sports Reference database — run scripts/fetch_weights.py to update."
     ),
     "dporpag": (
         "Defensive Points Over Replacement Per Adjusted Game. "
@@ -554,6 +561,8 @@ def main() -> None:
         ht_str = (
             f"{int(ht) // 12}'{int(ht) % 12}\"" if pd.notna(ht) else "N/A"
         )
+        wt = row.get("weight_lbs")
+        wt_str = f"{int(wt)} lbs" if pd.notna(wt) else "N/A"
         rec_val = row.get("rec")
         rec_str = f"{int(rec_val)}" if pd.notna(rec_val) else "Unranked"
 
@@ -562,7 +571,8 @@ def main() -> None:
             f"{row['team']} ({row['conf']})  |  {row.get('exp', '')}"
         )
         st.caption(
-            f"Height: {ht_str}  |  Recruit ranking: {rec_str}  |  Games: {int(row['g'])}"
+            f"Height: {ht_str}  |  Weight: {wt_str}  |  "
+            f"Recruit ranking: {rec_str}  |  Games: {int(row['g'])}"
         )
 
         st.markdown("**Production**")

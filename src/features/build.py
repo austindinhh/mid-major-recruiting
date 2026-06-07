@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import TARGET_METRIC, TRAINING_PAIRS_PATH
+from ..data.portal import load_weight_data
 
 # Exact column names as they appear after enrichment
 FEATURE_COLS = [
@@ -75,6 +76,13 @@ def enrich_player_seasons(
 
     # Derived shooting feature
     ps["three_pa_rate"] = ps["three_a"] / ps["fga"].replace(0, np.nan)
+
+    # Join weight data from Sports Reference (sparse; NaN when not available)
+    weight_df = load_weight_data()
+    if weight_df is not None and not weight_df.empty:
+        ps = ps.merge(weight_df[["player", "weight_lbs"]], on="player", how="left")
+    else:
+        ps["weight_lbs"] = np.nan
 
     # Encode experience
     ps["exp_num"] = ps["exp"].map(_EXP_MAP)
