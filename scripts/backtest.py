@@ -1,17 +1,15 @@
 """
-Phase 4 validation: backtest + named case studies.
+Backtest and case studies for the transfer projection model.
 
-Backtest: project non-high-major players from season T, check how many
-of the top-25 actually transferred to a high-major in T+1 and contributed.
-
-Case studies: find players the model was bullish on who delivered after
-transferring up — the write-up centerpiece.
+backtest()     — projects non-high-major players in season T, checks how many
+                 of the top-25 actually transferred up in T+1 and contributed.
+case_studies() — finds historical transfers the model projected well that delivered,
+                 useful for illustrating model accuracy with named examples.
 
 Run: python scripts/backtest.py
 
-Note: the model was trained on all years including post-holdout data, so this
+Note: the model is trained on all years including the backtest seasons, so this
 is an in-sample check that demonstrates the approach rather than a true holdout.
-A fully rigorous test would retrain on pre-T data; see Section 4 of the plan.
 """
 
 import sys

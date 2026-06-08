@@ -1,7 +1,6 @@
 """
-Phase 3: model training.
+Model training: naive baseline, Ridge, and LightGBM scored via 5-fold grouped CV.
 
-Three models, scored via 5-fold grouped CV keyed on player ID:
   naive  — flat projection (origin PORPAG unchanged)
   ridge  — Ridge regression with median imputation + standard scaling
   lgbm   — LightGBM (handles NaN natively, captures non-linear interactions)

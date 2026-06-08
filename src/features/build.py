@@ -1,7 +1,6 @@
 """
-Phase 2: feature engineering and training pair construction.
+Feature engineering and training pair construction.
 
-Pipeline:
   enrich_player_seasons()  — joins team ratings, computes derived columns
   build_transfer_pairs()   — creates one row per transfer: origin features + target
   get_feature_matrix()     — extracts X (features) and y (target) for the model

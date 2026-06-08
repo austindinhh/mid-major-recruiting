@@ -1,10 +1,6 @@
 """
-Sanity-check each pipeline phase.
-Run from the repo root: python scripts/validate_phase.py --phase N
-
-Phase 1: data cache files exist with expected shapes and key columns
-Phase 2: training pairs have expected coverage, NaN rates, and competition-delta variance
-Phase 3: model artifacts exist and beat the naive baseline (not yet implemented)
+Sanity-checks for the data, feature, model, and board pipeline steps.
+Run from the repo root: python scripts/validate.py --step <data|features|models|boards>
 """
 
 import sys
@@ -20,11 +16,11 @@ def _check(label: str, passed: bool) -> bool:
     return passed
 
 
-def validate_phase1() -> bool:
+def validate_data() -> bool:
     from src.data.cache import load
     from src.config import PLAYER_SEASONS_PATH, TEAMS_PATH, TRANSFERS_PATH
 
-    print("Phase 1: data cache")
+    print("Data cache")
     ok = True
 
     ps = load(PLAYER_SEASONS_PATH)
@@ -52,11 +48,11 @@ def validate_phase1() -> bool:
     return ok
 
 
-def validate_phase2() -> bool:
+def validate_features() -> bool:
     import pandas as pd
     from src.config import TRAINING_PAIRS_PATH, TARGET_METRIC
 
-    print("Phase 2: training pairs")
+    print("Training pairs")
     ok = True
 
     ok &= _check("training_pairs.parquet exists", TRAINING_PAIRS_PATH.exists())
@@ -68,7 +64,6 @@ def validate_phase2() -> bool:
     ok &= _check("has target column", "target" in pairs.columns)
     ok &= _check("target not all NaN", pairs["target"].notna().mean() > 0.8)
 
-    # Key feature columns
     for col in [TARGET_METRIC, "usg", "ortg", "origin_level", "destination_level"]:
         if col in pairs.columns:
             pct = pairs[col].notna().mean()
@@ -76,7 +71,6 @@ def validate_phase2() -> bool:
         else:
             ok &= _check(f"{col} present", False)
 
-    # Competition delta has real variance (model can learn from it)
     if "origin_level" in pairs.columns and "destination_level" in pairs.columns:
         delta = pairs["destination_level"] - pairs["origin_level"]
         ok &= _check("competition delta has variance", delta.std() > 0.01)
@@ -85,7 +79,6 @@ def validate_phase2() -> bool:
         ok &= _check(f"upward transfers present (n={n_up})", n_up >= 500)
         ok &= _check(f"downward transfers present (n={n_down})", n_down >= 500)
 
-    # Target distribution sanity
     target = pairs["target"].dropna()
     ok &= _check(
         f"target range plausible ({target.min():.1f} to {target.max():.1f})",
@@ -96,11 +89,11 @@ def validate_phase2() -> bool:
     return ok
 
 
-def validate_phase3() -> bool:
+def validate_models() -> bool:
     import json
     from src.config import MODEL_LGBM_PATH, MODEL_RIDGE_PATH, MODEL_SCORES_PATH
 
-    print("Phase 3: models")
+    print("Models")
     ok = True
 
     ok &= _check("lgbm.pkl exists", MODEL_LGBM_PATH.exists())
@@ -119,7 +112,6 @@ def validate_phase3() -> bool:
 
     ok &= _check(f"LightGBM beats naive (lgbm={lgbm_mae:.3f} < naive={naive_mae:.3f})", lgbm_mae < naive_mae)
     ok &= _check(f"Ridge beats naive   (ridge={ridge_mae:.3f} < naive={naive_mae:.3f})", ridge_mae < naive_mae)
-    # LightGBM should be within 5% of Ridge (they can tie on small datasets)
     ok &= _check(
         f"LightGBM within 5% of Ridge MAE (got {abs(lgbm_mae - ridge_mae) / ridge_mae:.1%})",
         abs(lgbm_mae - ridge_mae) / ridge_mae < 0.05,
@@ -130,11 +122,11 @@ def validate_phase3() -> bool:
     return ok
 
 
-def validate_phase4() -> bool:
+def validate_boards() -> bool:
     import pandas as pd
     from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES
 
-    print("Phase 4: scouting boards")
+    print("Scouting boards")
     ok = True
 
     gems_path      = DATA_DIR / "board_gems.parquet"
@@ -145,7 +137,7 @@ def validate_phase4() -> bool:
     if not gems_path.exists() or not transfers_path.exists():
         return ok
 
-    gems = pd.read_parquet(gems_path)
+    gems      = pd.read_parquet(gems_path)
     transfers = pd.read_parquet(transfers_path)
 
     ok &= _check("gems has projected_porpag",  "projected_porpag" in gems.columns)
@@ -153,7 +145,6 @@ def validate_phase4() -> bool:
     ok &= _check("gems >= 100 players",        len(gems) >= 100)
     ok &= _check("transfers >= 100 players",   len(transfers) >= 100)
 
-    # No high-major players on either board
     if "conf" in gems.columns:
         hm_in_gems = gems["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
         ok &= _check(f"no high-major players in gems (found {hm_in_gems})", hm_in_gems == 0)
@@ -161,11 +152,9 @@ def validate_phase4() -> bool:
         hm_in_trans = transfers["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
         ok &= _check(f"no high-major players in transfers (found {hm_in_trans})", hm_in_trans == 0)
 
-    # All gem_scores are non-negative
     neg_gems = (gems["gem_score"] < 0).sum()
     ok &= _check(f"all gem_scores non-negative (found {neg_gems} negative)", neg_gems == 0)
 
-    # Transfers board sorted by projected_porpag descending
     sorted_ok = (transfers["projected_porpag"].diff().dropna() <= 0).all()
     ok &= _check("transfers board sorted by projected_porpag desc", sorted_ok)
 
@@ -176,20 +165,25 @@ def validate_phase4() -> bool:
     return ok
 
 
-PHASES = {1: validate_phase1, 2: validate_phase2, 3: validate_phase3, 4: validate_phase4}
+STEPS = {
+    "data":     validate_data,
+    "features": validate_features,
+    "models":   validate_models,
+    "boards":   validate_boards,
+}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", type=int, required=True, choices=[1, 2, 3, 4])
+    parser.add_argument("--step", required=True, choices=list(STEPS.keys()))
     args = parser.parse_args()
 
-    passed = PHASES[args.phase]()
+    passed = STEPS[args.step]()
     print()
     if passed:
-        print(f"Phase {args.phase}: all checks passed.")
+        print(f"{args.step}: all checks passed.")
     else:
-        print(f"Phase {args.phase}: some checks FAILED - review output above.")
+        print(f"{args.step}: some checks FAILED — review output above.")
         sys.exit(1)
 
 
