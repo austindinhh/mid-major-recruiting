@@ -26,6 +26,7 @@ MODEL_DIR = ROOT / "models"
 MODEL_LGBM_PATH = MODEL_DIR / "lgbm.pkl"
 MODEL_RIDGE_PATH = MODEL_DIR / "ridge.pkl"
 MODEL_SCORES_PATH = MODEL_DIR / "scores.json"
+MODEL_STAT_MODELS_PATH = MODEL_DIR / "stat_models.pkl"
 
 # Board
 # Actual abbreviations used in the toRvik dataset

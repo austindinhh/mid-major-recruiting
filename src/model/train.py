@@ -23,7 +23,7 @@ import lightgbm as lgb
 
 from ..config import (
     CV_N_FOLDS, RANDOM_SEED, TARGET_METRIC,
-    MODEL_DIR, MODEL_LGBM_PATH, MODEL_RIDGE_PATH, MODEL_SCORES_PATH,
+    MODEL_DIR, MODEL_LGBM_PATH, MODEL_RIDGE_PATH, MODEL_SCORES_PATH, MODEL_STAT_MODELS_PATH,
 )
 
 
@@ -119,4 +119,54 @@ def save_models(ridge: Pipeline, lgbm_model: lgb.LGBMRegressor, scores: dict) ->
 def load_lgbm() -> lgb.LGBMRegressor | None:
     if MODEL_LGBM_PATH.exists():
         return joblib.load(MODEL_LGBM_PATH)
+    return None
+
+
+# Box stats to translate across competition levels (scoring, rebounding, playmaking, defense)
+_BOX_STATS = ["ppg", "rpg", "apg", "spg", "bpg"]
+# Context features shared across all per-stat Ridge models
+_STAT_CONTEXT_FEATS = ["origin_level", "destination_level", "usg", "porpag", "exp_num", "inches", "pos_num"]
+
+
+def train_stat_models(pairs: pd.DataFrame) -> dict:
+    """
+    Trains one Ridge pipeline per box stat (ppg, rpg, apg, spg, bpg) to translate
+    a player's origin stats to what they'd produce at the destination competition level.
+    Returns a dict keyed by stat name: {"model": Pipeline, "feature_cols": [...]}.
+    """
+    models = {}
+    for stat in _BOX_STATS:
+        dest_col = f"dest_{stat}"
+        if dest_col not in pairs.columns or stat not in pairs.columns:
+            print(f"[model] Stat model {stat}: skipped (missing column {dest_col})")
+            continue
+        context = [f for f in _STAT_CONTEXT_FEATS if f in pairs.columns]
+        feat_cols = [stat] + context
+        sub = pairs[feat_cols + [dest_col]].dropna()
+        if len(sub) < 100:
+            print(f"[model] Stat model {stat}: skipped (only {len(sub)} complete rows)")
+            continue
+        X = sub[feat_cols]
+        y = sub[dest_col]
+        pipe = Pipeline([
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+            ("ridge", Ridge(alpha=1.0)),
+        ])
+        pipe.fit(X, y)
+        train_mae = float(mean_absolute_error(y, pipe.predict(X)))
+        print(f"[model] Stat model {stat:<5s}: train MAE={train_mae:.3f}  n={len(sub):,}")
+        models[stat] = {"model": pipe, "feature_cols": feat_cols}
+    return models
+
+
+def save_stat_models(models: dict) -> None:
+    MODEL_DIR.mkdir(exist_ok=True)
+    joblib.dump(models, MODEL_STAT_MODELS_PATH)
+    print(f"[model] Saved {len(models)} stat models to {MODEL_STAT_MODELS_PATH.name}")
+
+
+def load_stat_models() -> dict | None:
+    if MODEL_STAT_MODELS_PATH.exists():
+        return joblib.load(MODEL_STAT_MODELS_PATH)
     return None

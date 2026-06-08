@@ -6,7 +6,7 @@ import pandas as pd
 
 from ..config import HIGH_MAJOR_CONFERENCES, MID_MAJOR_CONFERENCES, LAST_SEASON
 from ..features.build import FEATURE_COLS
-from .train import load_lgbm
+from .train import load_lgbm, load_stat_models
 
 
 def get_target_level(teams: pd.DataFrame, season: int) -> float:
@@ -45,6 +45,26 @@ def project_players(
 
     feat_cols = [c for c in FEATURE_COLS if c in players.columns]
     players["projected_porpag"] = lgbm.predict(players[feat_cols])
+    return players
+
+
+def project_box_stats(players: pd.DataFrame, destination_level: float) -> pd.DataFrame:
+    """
+    Adds projected_ppg, projected_rpg, projected_apg, projected_spg, projected_bpg columns.
+    Uses the stat translation Ridge models trained alongside the main LightGBM.
+    """
+    stat_models = load_stat_models()
+    if stat_models is None:
+        return players
+    players = players.copy()
+    players["destination_level"] = destination_level
+    for stat, model_info in stat_models.items():
+        pipe = model_info["model"]
+        feat_cols = model_info["feature_cols"]
+        available = [f for f in feat_cols if f in players.columns]
+        if len(available) < len(feat_cols):
+            continue
+        players[f"projected_{stat}"] = pipe.predict(players[available])
     return players
 
 

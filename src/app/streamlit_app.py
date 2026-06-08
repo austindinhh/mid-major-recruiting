@@ -756,6 +756,31 @@ def main() -> None:
                 help=_STAT_HELP["projected_porpag"],
             )
 
+        st.markdown("**Projected Game Stats at Big Ten**")
+        _PROJ_STATS = [
+            ("PPG",  "ppg",  "projected_ppg",  "Points per game"),
+            ("RPG",  "rpg",  "projected_rpg",  "Rebounds per game"),
+            ("APG",  "apg",  "projected_apg",  "Assists per game"),
+            ("SPG",  "spg",  "projected_spg",  "Steals per game"),
+            ("BPG",  "bpg",  "projected_bpg",  "Blocks per game"),
+        ]
+        gs1, gs2, gs3 = st.columns(3)
+        gs_cols = [gs1, gs2, gs3]
+        for i, (label, cur_col, proj_col, help_text) in enumerate(_PROJ_STATS):
+            cur  = pd.to_numeric(row.get(cur_col),  errors="coerce")
+            proj = pd.to_numeric(row.get(proj_col), errors="coerce")
+            with gs_cols[i % 3]:
+                if pd.notna(cur) and pd.notna(proj):
+                    delta = proj - cur
+                    st.metric(
+                        label,
+                        f"{proj:.1f}",
+                        delta=f"{delta:+.1f}",
+                        help=f"{help_text}. Currently {cur:.1f}; projected at Big Ten level.",
+                    )
+                elif pd.notna(cur):
+                    st.metric(label, f"{cur:.1f}", help=f"{help_text} (projection unavailable).")
+
         st.markdown("**Offensive Profile**")
         oc1, oc2, oc3 = st.columns(3)
         with oc1:
@@ -859,21 +884,26 @@ def main() -> None:
         row_b = filtered[filtered["player"] == compare_with].iloc[0]
 
         COMPARE_STATS = [
-            ("Team",            "team",             None),
-            ("Conference",      "conf",             None),
-            ("Class",           "exp",              None),
-            ("PRPG",          "porpag",           True),
-            ("Projected PRPG","projected_porpag", True),
-            ("Def PRPG",      "dporpag",          True),
-            ("USG%",            "usg",              True),
-            ("ORtg",            "ortg",             True),
-            ("TS%",             "ts",               True),
-            ("AST%",            "ast",              True),
-            ("TO%",             "to",               False),
-            ("FTR",             "ftr",              True),
-            ("Dreb%",           "dreb_rate",        True),
-            ("BLK%",            "blk",              True),
-            ("STL%",            "stl",              True),
+            ("Team",             "team",              None),
+            ("Conference",       "conf",              None),
+            ("Class",            "exp",               None),
+            ("PRPG",             "porpag",            True),
+            ("Projected PRPG",   "projected_porpag",  True),
+            ("Def PRPG",         "dporpag",           True),
+            ("Proj PPG",         "projected_ppg",     True),
+            ("Proj RPG",         "projected_rpg",     True),
+            ("Proj APG",         "projected_apg",     True),
+            ("Proj SPG",         "projected_spg",     True),
+            ("Proj BPG",         "projected_bpg",     True),
+            ("USG%",             "usg",               True),
+            ("ORtg",             "ortg",              True),
+            ("TS%",              "ts",                True),
+            ("AST%",             "ast",               True),
+            ("TO%",              "to",                False),
+            ("FTR",              "ftr",               True),
+            ("Dreb%",            "dreb_rate",         True),
+            ("BLK%",             "blk",               True),
+            ("STL%",             "stl",               True),
         ]
 
         stat_labels, vals_a, vals_b = [], [], []

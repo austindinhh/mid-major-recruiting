@@ -17,7 +17,7 @@ import pandas as pd
 from src.config import DATA_DIR, FIRST_SEASON, HIGH_MAJOR_CONFERENCES, LAST_SEASON
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import build_player_features
-from src.model.predict import project_players, add_gem_score, get_target_level
+from src.model.predict import project_players, add_gem_score, get_target_level, project_box_stats
 
 GEMS_PATH         = DATA_DIR / "board_gems.parquet"
 TRANSFERS_PATH    = DATA_DIR / "board_transfers.parquet"
@@ -61,13 +61,21 @@ def generate_boards(
         projected = projected[projected["seasons_played"] < 5]
         print(f"[board] {season}: removed {before - len(projected)} ineligible players (5+ seasons played)")
 
+    projected = project_box_stats(projected, target_level)
+
     save_cols = [
         "player", "pos", "team", "conf", "year",
-        "porpag", "projected_porpag",
+        "porpag", "dporpag", "projected_porpag",
+        "ppg", "rpg", "apg", "spg", "bpg",
+        "projected_ppg", "projected_rpg", "projected_apg", "projected_spg", "projected_bpg",
         "usg", "ortg", "ts", "ast", "to", "blk", "stl",
         "origin_level", "destination_level",
         "rec", "obscurity", "gem_score",
         "exp", "seasons_played", "inches", "id",
+        "conf_barthag", "oreb_rate", "dreb_rate", "ftr",
+        "rim_a", "rim_m", "rim_pct", "mid_a", "mid_m", "mid_pct",
+        "three_a", "three_m", "three_pct", "fga",
+        "porpag_trend", "pos_num", "exp_num", "obpm", "dbpm",
     ]
     save_cols = [c for c in save_cols if c in projected.columns]
 
@@ -86,7 +94,7 @@ def generate_boards(
         gems.to_parquet(GEMS_PATH, index=False)
         transfers.to_parquet(TRANSFERS_PATH, index=False)
 
-    n_rows = _save_players(players, season)
+    n_rows = _save_players(projected, season)
     print(f"[board] {season}: {len(gems)} gems | {len(transfers)} transfers | {n_rows} player rows")
     return gems, transfers
 

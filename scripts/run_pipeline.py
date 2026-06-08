@@ -22,6 +22,8 @@ from src.model.train import (
     train_lgbm,
     shap_importance,
     save_models,
+    train_stat_models,
+    save_stat_models,
 )
 
 
@@ -33,7 +35,8 @@ def main() -> None:
 
     print("\n=== Step 2: Build features ===")
     pairs = load_pairs()
-    if pairs is None:
+    # Rebuild if box stat columns are absent (origin or destination)
+    if pairs is None or "dest_ppg" not in pairs.columns or "ppg" not in pairs.columns:
         players = build_player_features(player_seasons, teams)
         pairs = build_transfer_pairs(players, transfers)
         save_pairs(pairs)
@@ -59,6 +62,10 @@ def main() -> None:
         "lgbm": lgbm_scores,
     }
     save_models(ridge, lgbm, all_scores)
+
+    print("\n=== Step 4: Train box stat translation models ===")
+    stat_models = train_stat_models(pairs)
+    save_stat_models(stat_models)
     print("\nDone.")
 
 

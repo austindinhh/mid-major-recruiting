@@ -146,26 +146,29 @@ def build_transfer_pairs(
     transfers["season"] = transfers["season"].astype(int)
     transfers["dest_season"] = transfers["dest_season"].astype(int)
 
-    # Origin stats: everything except conf_barthag (renamed below)
+    # Origin stats: model features + raw box stats needed for per-stat translation models
+    _origin_box_stats = ["ppg", "rpg", "apg", "spg", "bpg"]
     origin_cols = (
         ["id", "year"]
         + [c for c in FEATURE_COLS if c not in ("origin_level", "destination_level")]
         + ["conf_barthag"]
+        + _origin_box_stats
     )
     origin = players[[c for c in origin_cols if c in players.columns]].copy()
     origin = origin.rename(columns={"year": "season", "conf_barthag": "origin_level"})
 
     pairs = transfers.merge(origin, on=["id", "season"], how="inner")
 
-    # Destination: target value + destination conference level
-    dest = players[["id", "year", TARGET_METRIC, "conf_barthag"]].copy()
-    dest = dest.rename(
-        columns={
-            "year": "dest_season",
-            TARGET_METRIC: "target",
-            "conf_barthag": "destination_level",
-        }
-    )
+    # Destination: target value + destination conference level + box stats
+    _dest_box_stats = [s for s in ["ppg", "rpg", "apg", "spg", "bpg"] if s in players.columns]
+    dest_cols = ["id", "year", TARGET_METRIC, "conf_barthag"] + _dest_box_stats
+    dest = players[[c for c in dest_cols if c in players.columns]].copy()
+    dest = dest.rename(columns={
+        "year": "dest_season",
+        TARGET_METRIC: "target",
+        "conf_barthag": "destination_level",
+        **{s: f"dest_{s}" for s in _dest_box_stats},
+    })
     pairs = pairs.merge(dest, on=["id", "dest_season"], how="inner")
 
     n_up = (pairs["destination_level"] > pairs["origin_level"]).sum()
