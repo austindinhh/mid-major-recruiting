@@ -111,6 +111,9 @@ def enrich_player_seasons(
     ps = ps.sort_values(["id", "year"])
     ps["porpag_trend"] = ps.groupby("id")[TARGET_METRIC].diff()
 
+    # Cumulative seasons played per player through each season (used for eligibility)
+    ps["seasons_played"] = ps.groupby("id").cumcount() + 1
+
     print(
         f"[features] Enriched {len(ps):,} player-seasons | "
         f"team join fill rate: {ps['team_barthag'].notna().mean():.1%} | "

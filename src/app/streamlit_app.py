@@ -636,6 +636,7 @@ def main() -> None:
         st.caption(
             "Data source: [toRvik-data](https://github.com/andreweatherman/toRvik-data)"
         )
+        st.caption("Players with 5+ seasons played are excluded (ineligible to transfer).")
 
     # -----------------------------------------------------------------------
     # Project + filter
@@ -757,7 +758,13 @@ def main() -> None:
     st.subheader("Player Detail")
 
     player_options = filtered["player"].tolist()
-    selected = st.selectbox("Select a player to view full profile", player_options)
+    sel_col, cmp_col = st.columns([1, 1])
+    with sel_col:
+        selected = st.selectbox("Select a player to view full profile", player_options)
+    with cmp_col:
+        compare_options = ["None"] + [p for p in player_options if p != selected]
+        compare_with = st.selectbox("Compare with (optional)", compare_options)
+
     if not selected:
         return
 
@@ -894,6 +901,73 @@ def main() -> None:
                             f"→ {comp['to_team']} ({comp['to_conf']}) &nbsp; {season_str} &nbsp;|&nbsp; "
                             f"Projected {pred_str} · Actual {actual_str}"
                         )
+
+    # -----------------------------------------------------------------------
+    # Player comparison
+    # -----------------------------------------------------------------------
+    if compare_with and compare_with != "None":
+        st.divider()
+        st.subheader(f"{selected}  vs.  {compare_with}")
+
+        row_b = filtered[filtered["player"] == compare_with].iloc[0]
+
+        COMPARE_STATS = [
+            ("Team",            "team",             None),
+            ("Conference",      "conf",             None),
+            ("Class",           "exp",              None),
+            ("PORPAG",          "porpag",           True),
+            ("Projected PORPAG","projected_porpag", True),
+            ("Def PORPAG",      "dporpag",          True),
+            ("USG%",            "usg",              True),
+            ("ORtg",            "ortg",             True),
+            ("TS%",             "ts",               True),
+            ("AST%",            "ast",              True),
+            ("TO%",             "to",               False),
+            ("FTR",             "ftr",              True),
+            ("Dreb%",           "dreb_rate",        True),
+            ("BLK%",            "blk",              True),
+            ("STL%",            "stl",              True),
+        ]
+
+        stat_labels, vals_a, vals_b = [], [], []
+        for label, col, _ in COMPARE_STATS:
+            a = row.get(col)
+            b = row_b.get(col)
+            stat_labels.append(label)
+            if isinstance(a, float) and pd.notna(a):
+                vals_a.append(f"{a:.2f}")
+            else:
+                vals_a.append(str(a) if pd.notna(a) else "—")
+            if isinstance(b, float) and pd.notna(b):
+                vals_b.append(f"{b:.2f}")
+            else:
+                vals_b.append(str(b) if pd.notna(b) else "—")
+
+        cmp_df = pd.DataFrame({
+            "Stat":      stat_labels,
+            selected:    vals_a,
+            compare_with: vals_b,
+        })
+
+        def _highlight(row_s):
+            a_raw = row.get(COMPARE_STATS[row_s.name][1])
+            b_raw = row_b.get(COMPARE_STATS[row_s.name][1])
+            higher = COMPARE_STATS[row_s.name][2]
+            styles = ["", "", ""]
+            if higher is None or not isinstance(a_raw, float) or not isinstance(b_raw, float):
+                return styles
+            if pd.isna(a_raw) or pd.isna(b_raw):
+                return styles
+            a_wins = (a_raw > b_raw) if higher else (a_raw < b_raw)
+            b_wins = (b_raw > a_raw) if higher else (b_raw < a_raw)
+            if a_wins:
+                styles[1] = "background-color: #fff3e0; font-weight: bold"
+            elif b_wins:
+                styles[2] = "background-color: #fff3e0; font-weight: bold"
+            return styles
+
+        styled = cmp_df.style.apply(_highlight, axis=1)
+        st.dataframe(styled, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":

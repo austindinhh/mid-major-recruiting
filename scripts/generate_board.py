@@ -54,13 +54,20 @@ def generate_boards(
     players = project_players(enriched, teams, season=season, destination_level=target_level)
     players = add_gem_score(players)
 
+    # Remove players who have exhausted their eligibility (5+ seasons played).
+    # Seniors with fewer than 5 seasons are still eligible as grad transfers.
+    if "seasons_played" in players.columns:
+        before = len(players)
+        players = players[players["seasons_played"] < 5]
+        print(f"[board] {season}: removed {before - len(players)} ineligible players (5+ seasons played)")
+
     save_cols = [
         "player", "pos", "team", "conf", "year",
         "porpag", "projected_porpag",
         "usg", "ortg", "ts", "ast", "to", "blk", "stl",
         "origin_level", "destination_level",
         "rec", "obscurity", "gem_score",
-        "exp", "inches", "id",
+        "exp", "seasons_played", "inches", "id",
     ]
     save_cols = [c for c in save_cols if c in players.columns]
 
