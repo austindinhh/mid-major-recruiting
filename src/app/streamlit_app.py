@@ -667,7 +667,7 @@ def main() -> None:
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
     proj_starters = int((filtered["projected_porpag"] >= 2.0).sum()) if not filtered.empty else 0
-    m4.metric("Proj Starters (≥ 2.0 PRPG)", proj_starters)
+    m4.metric("Projected Starters (≥ 2.0 PRPG)", proj_starters)
 
     # -----------------------------------------------------------------------
     # Board table
@@ -769,13 +769,13 @@ def main() -> None:
             st.metric("TO%", f"{row['to']:.1f}", help=_STAT_HELP["to"])
 
         st.markdown("**Defensive Profile**")
-        st.metric("Def PRPG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
+        st.metric("DPRPG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
         dc1, dc2 = st.columns(2)
         with dc1:
-            st.metric("Dreb%", f"{row.get('dreb_rate', float('nan')):.1f}", help=_STAT_HELP["dreb_rate"])
+            st.metric("DReb%", f"{row.get('dreb_rate', float('nan')):.1f}", help=_STAT_HELP["dreb_rate"])
             st.metric("BLK%", f"{row.get('blk', float('nan')):.1f}", help=_STAT_HELP["blk"])
         with dc2:
-            st.metric("Oreb%", f"{row.get('oreb_rate', float('nan')):.1f}", help=_STAT_HELP["oreb_rate"])
+            st.metric("OReb%", f"{row.get('oreb_rate', float('nan')):.1f}", help=_STAT_HELP["oreb_rate"])
             st.metric("STL%", f"{row.get('stl', float('nan')):.1f}", help=_STAT_HELP["stl"])
 
         if hist_preds is not None:
