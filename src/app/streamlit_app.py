@@ -1,11 +1,8 @@
 """
 Mid-Major Scouting Board — Streamlit app.
 
-Two modes:
-  Hidden Gems    — ranked by projected PORPAG x obscurity score
-  Best Transfers — ranked by raw projected PORPAG regardless of visibility
-
-Destination level slider re-projects all players on the fly; no page reload needed.
+Ranks non-high-major D1 players by projected PORPAG at the high-major level.
+Internal tool for Illinois basketball recruiting.
 """
 
 import json
@@ -120,7 +117,7 @@ BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
     "g", "porpag", "dporpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
-    "rec", "pick", "gem_score",
+    "rec", "pick",
 ]
 
 COL_LABELS = {
@@ -599,27 +596,8 @@ def main() -> None:
         )
         season = season_labels[selected_label]
 
-        board_mode = st.radio(
-            "Board type",
-            ["Best Transfers", "Hidden Gems"],
-            help=(
-                "Hidden Gems weights projected value by how unscouted the player is. "
-                "Best Transfers ranks purely by projected PORPAG at your target level."
-            ),
-        )
-
-        st.divider()
-
         enriched, tier_levels = load_enriched(season)
-
-        dest_tier = st.select_slider(
-            "Project to competition level",
-            options=["Low-Major", "Mid-Major", "High-Major"],
-            value="High-Major",
-        )
-        dest_level = tier_levels[dest_tier]
-
-        st.divider()
+        dest_level = tier_levels["High-Major"]
 
         all_pos     = sorted(enriched["pos"].dropna().unique())
         all_confs   = sorted(enriched["conf"].dropna().unique())
@@ -629,8 +607,6 @@ def main() -> None:
         pos_filter   = st.multiselect("Position", all_pos)
         conf_filter  = st.multiselect("Conference", all_confs)
         class_filter = st.multiselect("Class", all_classes)
-        min_games    = st.slider("Min games played", 0, 35, 10)
-        nba_only     = st.toggle("NBA Draft picks only")
 
         st.divider()
         st.caption(
@@ -643,9 +619,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     projected = project(enriched, dest_level, model)
 
-    mask = projected["g"] >= min_games
-    if nba_only:
-        mask &= projected["pick"].fillna(0) > 0
+    mask = projected["g"] >= 10
     if pos_filter:
         mask &= projected["pos"].isin(pos_filter)
     if conf_filter:
@@ -654,12 +628,7 @@ def main() -> None:
         mask &= projected["exp"].isin(class_filter)
 
     filtered = projected[mask].copy()
-
-    if board_mode == "Hidden Gems":
-        filtered = filtered[filtered["projected_porpag"] > 0]
-        filtered = filtered.sort_values("gem_score", ascending=False)
-    else:
-        filtered = filtered.sort_values("projected_porpag", ascending=False)
+    filtered = filtered.sort_values("projected_porpag", ascending=False)
 
     filtered = filtered.reset_index(drop=True).copy()
     filtered.insert(0, "rank", range(1, len(filtered) + 1))
@@ -680,29 +649,20 @@ def main() -> None:
     # Header + summary stats
     # -----------------------------------------------------------------------
     st.title("Mid-Major Scouting Board")
-    st.caption(
-        f"{selected_label} season  |  {len(filtered):,} players  |  "
-        f"projecting to {dest_tier} (Barthag {dest_level:.3f})"
-    )
+    st.caption(f"{selected_label} Season  |  {len(filtered):,} Players  |  Projecting to High-Major")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Players shown", len(filtered))
+    m1.metric("Players Shown", len(filtered))
     m2.metric(
-        "Top projected PORPAG",
+        "Top Projected PORPAG",
         f"{filtered['projected_porpag'].max():.2f}" if not filtered.empty else "-",
     )
     m3.metric(
-        "Avg projected PORPAG",
+        "Avg Projected PORPAG",
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
-    if board_mode == "Hidden Gems":
-        m4.metric(
-            "Top gem score",
-            f"{filtered['gem_score'].max():.3f}" if not filtered.empty else "-",
-        )
-    else:
-        unrecruited = int(filtered["rec"].isna().sum()) if not filtered.empty else 0
-        m4.metric("Unrecruited players", unrecruited)
+    unrecruited = int(filtered["rec"].isna().sum()) if not filtered.empty else 0
+    m4.metric("Unrecruited Players", unrecruited)
 
     # -----------------------------------------------------------------------
     # Board table
@@ -714,8 +674,6 @@ def main() -> None:
         return
 
     display_cols = [c for c in BOARD_COLS if c in filtered.columns]
-    if board_mode == "Best Transfers":
-        display_cols = [c for c in display_cols if c != "gem_score"]
 
     col_cfg = {}
     for col in display_cols:
@@ -747,7 +705,7 @@ def main() -> None:
     st.download_button(
         label="Download board as CSV",
         data=csv_bytes,
-        file_name=f"board_{board_mode.lower().replace(' ', '_')}.csv",
+        file_name=f"board_{selected_label.replace('-', '_')}.csv",
         mime="text/csv",
     )
 
@@ -837,7 +795,7 @@ def main() -> None:
                 dest_label = _season_label(int(latest["dest_season"]))
                 st.divider()
                 st.markdown(
-                    f"**Prediction vs Reality** — "
+                    f"**Prediction vs Reality**: "
                     f"{dest_label} at {latest['to_team']} ({latest['to_conf']})"
                 )
                 pv1, pv2, pv3 = st.columns(3)
@@ -864,16 +822,6 @@ def main() -> None:
             fig_shot = shot_profile_chart(enriched_row.iloc[0])
             if fig_shot is not None:
                 st.plotly_chart(fig_shot, use_container_width=True)
-
-        if board_mode == "Hidden Gems":
-            st.markdown("**Obscurity breakdown**")
-            oc1, oc2, oc3 = st.columns(3)
-            with oc1:
-                st.metric("Gem Score", f"{row.get('gem_score', 0):.3f}", help=_STAT_HELP["gem_score"])
-            with oc2:
-                st.metric("Obscurity", f"{row.get('obscurity', 0):.2f}", help=_STAT_HELP["obscurity"])
-            with oc3:
-                st.metric("Conference", row["conf"])
 
         player_id = row.get("id")
         if player_id is not None:
