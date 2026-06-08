@@ -37,6 +37,8 @@ FEATURE_COLS = [
     # Competition delta — the critical feature for the translation function
     "origin_level",       # mean barthag of origin conference that year
     "destination_level",  # mean barthag of destination conference that year
+    # Trajectory: year-over-year improvement/decline at origin
+    "porpag_trend",       # porpag this season minus porpag prior season (NaN for first season)
 ]
 
 _EXP_MAP = {"Fr": 1, "So": 2, "Jr": 3, "Sr": 4, "Gr": 5}
@@ -104,6 +106,10 @@ def enrich_player_seasons(
     # Attach conference competition level
     conf_lvl = _conf_levels(teams)
     ps = ps.merge(conf_lvl, on=["conf", "year"], how="left")
+
+    # Year-over-year PORPAG trajectory (requires player to have a prior season)
+    ps = ps.sort_values(["id", "year"])
+    ps["porpag_trend"] = ps.groupby("id")[TARGET_METRIC].diff()
 
     print(
         f"[features] Enriched {len(ps):,} player-seasons | "
