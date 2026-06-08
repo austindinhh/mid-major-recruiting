@@ -110,8 +110,11 @@ HIST_PREDS_PATH      = DATA_DIR / "historical_predictions.parquet"
 PLAYER_SEASONS_PATH  = DATA_DIR / "player_seasons.parquet"
 TRAINING_PAIRS_PATH  = DATA_DIR / "training_pairs.parquet"
 
-# Features used for nearest-neighbour comp matching (scale-invariant subset)
-_COMP_FEATURES = ["porpag", "usg", "ts", "dporpag", "exp_num", "origin_level", "porpag_trend"]
+# Features and weights for nearest-neighbour comp matching.
+# Production and physical profile are weighted higher than peripheral stats.
+# exp_num excluded — class year is irrelevant for comp quality.
+_COMP_FEATURES = ["porpag", "dporpag", "usg", "ts", "inches", "pos_num", "origin_level", "porpag_trend"]
+_COMP_WEIGHTS  = [  2.0,      2.0,      1.0,  1.0,    1.5,     1.5,        1.0,            1.0          ]
 
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
@@ -528,9 +531,10 @@ def find_comps(
 ) -> pd.DataFrame:
     """
     Return the n most similar completed upward-to-high-major transfers using
-    L2 distance on _COMP_FEATURES, min-max normalised across the candidate pool.
-    Only uses dest_season < current_season so a GM only sees outcomes that
-    have already happened.
+    weighted L2 distance on _COMP_FEATURES, min-max normalised across the pool.
+    porpag_trend NaN is imputed to 0 (no prior season = neutral trend) rather
+    than dropped, so first-year players remain in the candidate pool.
+    Only uses dest_season < current_season so all outcomes have already happened.
     """
     pool = training_pairs[
         (training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES))
@@ -539,9 +543,16 @@ def find_comps(
     ].copy()
 
     cols = [c for c in _COMP_FEATURES if c in pool.columns and c in player_row.index]
-    pool = pool.dropna(subset=cols)
+    weights = [_COMP_WEIGHTS[_COMP_FEATURES.index(c)] for c in cols]
+    w = np.array(weights)
 
-    # Min-max scale so no single feature dominates
+    # Impute porpag_trend with 0 (neutral) rather than dropping the row.
+    # Drop only rows missing core production/physical features.
+    non_imputable = [c for c in cols if c != "porpag_trend"]
+    pool = pool.dropna(subset=non_imputable)
+    pool["porpag_trend"] = pool["porpag_trend"].fillna(0)
+
+    # Min-max scale then apply feature weights
     mins = pool[cols].min()
     maxs = pool[cols].max()
     rng = (maxs - mins).replace(0, 1)
@@ -550,7 +561,7 @@ def find_comps(
     target = pd.to_numeric(player_row[cols], errors="coerce").fillna(0)
     target_scaled = (target - mins) / rng
 
-    pool["_dist"] = np.sqrt(((pool_scaled - target_scaled) ** 2).sum(axis=1))
+    pool["_dist"] = np.sqrt((w * (pool_scaled - target_scaled) ** 2).sum(axis=1))
     nearest = pool.nsmallest(n, "_dist")
 
     # Attach predicted and actual from hist_preds where available
