@@ -39,6 +39,8 @@ FEATURE_COLS = [
     "destination_level",  # mean barthag of destination conference that year
     # Trajectory: year-over-year improvement/decline at origin
     "porpag_trend",       # porpag this season minus porpag prior season (NaN for first season)
+    # Box plus/minus (pace/role-adjusted value; obpm adds signal beyond raw porpag)
+    "obpm", "dbpm",
 ]
 
 _EXP_MAP = {"Fr": 1, "So": 2, "Jr": 3, "Sr": 4, "Gr": 5}
