@@ -16,15 +16,15 @@ This tool bridges that gap by translating each player's production across compet
 
 The projection is built on a natural experiment: when a player transfers, you observe the same person competing at two different levels. Using 10+ years of transfer data (2012–2026) and over 12,000 historical transfer events, a LightGBM model learns how production typically changes based on the size of the competition jump, the player's role and efficiency, their physical profile, defensive value, and year-over-year improvement trajectory.
 
-Each player on the board is projected to the average Big Ten competition level. The number shown (**Projected PORPAG**) is an estimate of what they would contribute as an Illini.
+Each player on the board is projected to the average Big Ten competition level. The number shown (**Projected PRPG**) is an estimate of what they would contribute as an Illini.
 
-**Model accuracy:** mean absolute error of **0.86 PORPAG** on held-out transfers, compared to 1.02 for a naive "production stays flat" baseline, which is a 15% improvement.
+**Model accuracy:** mean absolute error of **0.86 PRPG** on held-out transfers, compared to 1.02 for a naive "production stays flat" baseline, which is a 15% improvement.
 
 ---
 
-## Key Metric: PORPAG
+## Key Metric: PRPG
 
-**PORPAG** (Points Over Replacement Per Adjusted Game) is a single-number measure of a player's offensive value above a replacement-level player, per adjusted game, as calculated by BartTorvik. It accounts for pace, usage, and schedule strength.
+**PRPG** (Points over Replacement Per Game) is a single-number measure of a player's offensive value above a replacement-level player per game, as calculated by BartTorvik.
 
 | Range | What It Means |
 |---|---|
@@ -35,7 +35,7 @@ Each player on the board is projected to the average Big Ten competition level. 
 | 3+ | Star player |
 | 4+ | Elite / All-Conference level |
 
-**Def PORPAG** is the defensive counterpart: defensive stops, rim protection, and rebounding above replacement.
+**DPRPG** is the defensive counterpart: defensive stops, rim protection, and rebounding above replacement.
 
 ---
 
@@ -43,15 +43,15 @@ Each player on the board is projected to the average Big Ten competition level. 
 
 **Sidebar filters:** Narrow by season, position, conference, or class year.
 
-**Board table:** Sorted by Projected PORPAG (highest first). Click **Profile** on any row to open the player's full stat page on BartTorvik.
+**Board table:** Sorted by Projected PRPG (highest first). Click **Profile** on any row to open the player's full stat page on BartTorvik.
 
 **Player detail panel:** Click a player's name from the dropdown below the table to see:
 
-- **Production** — current PORPAG vs. projected PORPAG at the Big Ten level, with the expected change
+- **Production** — current PRPG vs. projected PRPG at the Big Ten level, with the expected change
 - **Offensive / Defensive profile** — usage, efficiency, rebounding, and defensive stats
 - **What Drives This Projection** — a SHAP chart showing which factors (beyond raw production) most influence the model's estimate for this specific player
 - **Shot Profile** — how the player generates offense: rim attempts, mid-range, and three-pointers, with make rates
-- **Career PORPAG by Season** — the player's production history, color-coded by conference tier (orange = high-major, blue = mid-major, gray = low-major)
+- **Career PRPG by Season** — the player's production history, color-coded by conference tier (orange = high-major, blue = mid-major, gray = low-major)
 - **Prediction vs Reality** — if this player has an existing high-major season, the model's projection vs. what they actually produced
 - **Similar Historical Transfers** — the 3 most statistically similar players who made comparable jumps, and what they produced at the destination
 

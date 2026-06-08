@@ -1,7 +1,7 @@
 """
 Mid-Major Scouting Board — Streamlit app.
 
-Ranks non-high-major D1 players by projected PORPAG at the high-major level.
+Ranks non-high-major D1 players by projected PRPG at the high-major level.
 Internal tool for Illinois basketball recruiting.
 """
 
@@ -134,9 +134,9 @@ COL_LABELS = {
     "conf":              "Conf",
     "exp":               "Class",
     "g":                 "G",
-    "porpag":            "PORPAG",
-    "dporpag":           "Def PORPAG",
-    "projected_porpag":  "Proj PORPAG",
+    "porpag":            "PRPG",
+    "dporpag":           "Def PRPG",
+    "projected_porpag":  "Proj PRPG",
     "usg":               "USG%",
     "ortg":              "ORtg",
     "ts":                "TS%",
@@ -147,7 +147,7 @@ COL_LABELS = {
 
 # Human-readable SHAP feature labels for the player detail chart
 FEATURE_LABELS = {
-    "porpag":           "Origin production (PORPAG)",
+    "porpag":           "Origin production (PRPG)",
     "ft_pct":           "Free throw percentage",
     "team_barthag":     "Strength of competition faced",
     "destination_level":"Target level jump",
@@ -163,7 +163,7 @@ FEATURE_LABELS = {
     "ast":              "Assist rate",
     "team_ov_sos":      "Strength of schedule",
     "oreb_rate":        "Offensive rebounding rate",
-    "dporpag":          "Defensive production (Def PORPAG)",
+    "dporpag":          "Defensive production (DPRPG)",
     "blk":              "Block rate",
     "stl":              "Steal rate",
     "ftr":              "Free throw rate",
@@ -175,7 +175,7 @@ FEATURE_LABELS = {
     "inches":           "Height",
     "team_adj_o":       "Offensive team environment",
     "pos_num":          "Position",
-    "porpag_trend":     "Year-over-year PORPAG change",
+    "porpag_trend":     "Year-over-year PRPG change",
     "obpm":             "Offensive box plus/minus",
     "dbpm":             "Defensive box plus/minus",
 }
@@ -183,13 +183,13 @@ FEATURE_LABELS = {
 # Hover tooltip text for each stat shown in the player detail section.
 _STAT_HELP = {
     "porpag": (
-        "Points Over Replacement Per Adjusted Game. "
-        "How many points above a replacement-level player this player contributes per adjusted game. "
+        "Points over Replacement Per Game (PRPG), as calculated by BartTorvik. "
+        "Measures how many points above a replacement-level player this player contributes per game. "
         "Below 0: below replacement. 0-1: bench rotation. 1-2: solid contributor. "
         "2-3: starter. 3+: star. 4+: elite."
     ),
     "projected_porpag": (
-        "Estimated PORPAG if this player transferred to the selected competition level. "
+        "Estimated PRPG if this player transferred to the Big Ten level. "
         "The delta shows the projected change from current production. "
         "Positive means the model expects more value at the new level."
     ),
@@ -227,8 +227,8 @@ _STAT_HELP = {
         "Read alongside usage; players with higher usage tend to turn it over more."
     ),
     "dporpag": (
-        "Defensive Points Over Replacement Per Adjusted Game. "
-        "The defensive counterpart to PORPAG. Measures defensive stops, rim protection, "
+        "Defensive Points over Replacement Per Game (DPRPG), as calculated by BartTorvik. "
+        "The defensive counterpart to PRPG. Measures defensive stops, rim protection, "
         "and defensive rebounding above a replacement-level defender. "
         "0-1: average. 2+: above average. 3+: strong defender. 4+: elite two-way value."
     ),
@@ -358,7 +358,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
     )
     fig.update_layout(
         title="What Drives This Projection",
-        xaxis_title="Contribution to Projected PORPAG",
+        xaxis_title="Contribution to Projected PRPG",
         height=360,
         margin=dict(l=0, r=10, t=40, b=20),
         plot_bgcolor="#FFFFFF",
@@ -426,11 +426,11 @@ def career_chart(
             mode="markers",
             name=tier_label,
             marker=dict(color=color, size=11, line=dict(color="#ffffff", width=1.5)),
-            hovertemplate="%{x}<br>PORPAG: %{y:.2f}<extra></extra>",
+            hovertemplate="%{x}<br>PRPG: %{y:.2f}<extra></extra>",
         ))
 
     fig.update_layout(
-        title="Career PORPAG by Season",
+        title="Career PRPG by Season",
         height=300,
         margin=dict(l=0, r=0, t=40, b=10),
         plot_bgcolor="#FFFFFF",
@@ -438,7 +438,7 @@ def career_chart(
         font=dict(size=11, color="#13294B"),
         title_font=dict(color="#13294B"),
         xaxis=dict(color="#13294B", tickangle=-20),
-        yaxis=dict(title="PORPAG", color="#13294B", zeroline=True, zerolinecolor="#cccccc"),
+        yaxis=dict(title="PRPG", color="#13294B", zeroline=True, zerolinecolor="#cccccc"),
         legend=dict(orientation="h", y=-0.25, font=dict(size=10)),
     )
     return fig
@@ -659,15 +659,15 @@ def main() -> None:
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Eligible Transfers", len(filtered))
     m2.metric(
-        "Top Projected PORPAG",
+        "Top Projected PRPG",
         f"{filtered['projected_porpag'].max():.2f}" if not filtered.empty else "-",
     )
     m3.metric(
-        "Avg Projected PORPAG",
+        "Avg Projected PRPG",
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
     proj_starters = int((filtered["projected_porpag"] >= 2.0).sum()) if not filtered.empty else 0
-    m4.metric("Projected Starters (≥ 2.0 PORPAG)", proj_starters)
+    m4.metric("Proj Starters (≥ 2.0 PRPG)", proj_starters)
 
     # -----------------------------------------------------------------------
     # Board table
@@ -746,11 +746,11 @@ def main() -> None:
         st.markdown("**Production**")
         pc1, pc2 = st.columns(2)
         with pc1:
-            st.metric("Current PORPAG", f"{row['porpag']:.2f}", help=_STAT_HELP["porpag"])
+            st.metric("Current PRPG", f"{row['porpag']:.2f}", help=_STAT_HELP["porpag"])
         with pc2:
             delta = row["projected_porpag"] - row["porpag"]
             st.metric(
-                "Projected PORPAG",
+                "Projected PRPG",
                 f"{row['projected_porpag']:.2f}",
                 delta=f"{delta:+.2f}",
                 help=_STAT_HELP["projected_porpag"],
@@ -769,7 +769,7 @@ def main() -> None:
             st.metric("TO%", f"{row['to']:.1f}", help=_STAT_HELP["to"])
 
         st.markdown("**Defensive Profile**")
-        st.metric("Def PORPAG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
+        st.metric("Def PRPG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
         dc1, dc2 = st.columns(2)
         with dc1:
             st.metric("Dreb%", f"{row.get('dreb_rate', float('nan')):.1f}", help=_STAT_HELP["dreb_rate"])
@@ -862,9 +862,9 @@ def main() -> None:
             ("Team",            "team",             None),
             ("Conference",      "conf",             None),
             ("Class",           "exp",              None),
-            ("PORPAG",          "porpag",           True),
-            ("Projected PORPAG","projected_porpag", True),
-            ("Def PORPAG",      "dporpag",          True),
+            ("PRPG",          "porpag",           True),
+            ("Projected PRPG","projected_porpag", True),
+            ("Def PRPG",      "dporpag",          True),
             ("USG%",            "usg",              True),
             ("ORtg",            "ortg",             True),
             ("TS%",             "ts",               True),
