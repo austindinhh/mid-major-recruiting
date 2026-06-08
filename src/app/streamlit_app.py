@@ -581,7 +581,7 @@ def main() -> None:
     # Sidebar
     # -----------------------------------------------------------------------
     with st.sidebar:
-        st.header("Controls")
+        st.header("Filters")
 
         season_labels = {_season_label(y): y for y in available_seasons}
         selected_label = st.selectbox(
@@ -643,11 +643,11 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # Header + summary stats
     # -----------------------------------------------------------------------
-    st.title("Mid-Major Scouting Board")
-    st.caption(f"{selected_label} Season  |  {len(filtered):,} Players  |  Projecting to High-Major")
+    st.title("Illinois Transfer Portal Scouting Board")
+    st.caption(f"{selected_label} Season  |  Projecting to High-Major (Big Ten)")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Players Shown", len(filtered))
+    m1.metric("Eligible Transfers", len(filtered))
     m2.metric(
         "Top Projected PORPAG",
         f"{filtered['projected_porpag'].max():.2f}" if not filtered.empty else "-",
@@ -657,7 +657,7 @@ def main() -> None:
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
     proj_starters = int((filtered["projected_porpag"] >= 2.0).sum()) if not filtered.empty else 0
-    m4.metric("Proj Starters (≥ 2.0 PORPAG)", proj_starters)
+    m4.metric("Projected Starters (≥ 2.0 PORPAG)", proj_starters)
 
     # -----------------------------------------------------------------------
     # Board table
@@ -731,7 +731,7 @@ def main() -> None:
             f"**{row['player']}**  |  {row.get('pos', '')}  |  "
             f"{row['team']} ({row['conf']})  |  {row.get('exp', '')}"
         )
-        st.caption(f"Height: {ht_str}  |  Games: {int(row['g'])}")
+        st.caption(f"Height: {ht_str}  |  Games Played: {int(row['g'])}")
 
         st.markdown("**Production**")
         pc1, pc2 = st.columns(2)
@@ -789,7 +789,7 @@ def main() -> None:
                     st.metric("Actual", f"{latest['actual_porpag']:.2f}")
                 with pv3:
                     err = latest["error"]
-                    st.metric("Difference", f"{err:+.2f}", delta=f"{err:+.2f}")
+                    st.metric("Difference", f"{err:+.2f}")
 
     with right:
         player_row = projected[projected["player"] == selected]
@@ -822,17 +822,22 @@ def main() -> None:
                 comps = find_comps(player_row.iloc[0], training_pairs, hist_preds, season)
                 if not comps.empty:
                     st.markdown("**Similar Historical Transfers**")
+                    comp_rows = []
                     for _, comp in comps.iterrows():
-                        season_str = _season_label(int(comp["dest_season"]))
-                        pred = comp["projected_porpag"]
+                        pred   = comp["projected_porpag"]
                         actual = comp["actual_porpag"]
-                        pred_str = f"{pred:.2f}" if pd.notna(pred) else "—"
-                        actual_str = f"{actual:.2f}" if pd.notna(actual) else "—"
-                        st.caption(
-                            f"**{comp['player']}** &nbsp; {comp['from_team']} ({comp['from_conf']}) "
-                            f"→ {comp['to_team']} ({comp['to_conf']}) &nbsp; {season_str} &nbsp;|&nbsp; "
-                            f"Projected {pred_str} · Actual {actual_str}"
-                        )
+                        comp_rows.append({
+                            "Player":    comp["player"],
+                            "Transfer":  f"{comp['from_team']} → {comp['to_team']}",
+                            "Season":    _season_label(int(comp["dest_season"])),
+                            "Projected": f"{pred:.2f}" if pd.notna(pred) else "—",
+                            "Actual":    f"{actual:.2f}" if pd.notna(actual) else "—",
+                        })
+                    st.dataframe(
+                        pd.DataFrame(comp_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
     # -----------------------------------------------------------------------
     # Player comparison
