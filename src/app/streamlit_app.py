@@ -120,7 +120,6 @@ BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
     "g", "porpag", "dporpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
-    "rec", "pick",
 ]
 
 COL_LABELS = {
@@ -141,8 +140,6 @@ COL_LABELS = {
     "ast":               "AST%",
     "to":                "TO%",
     "ftr":               "FTR",
-    "rec":               "Recruit",
-    "pick":              "Draft Pick",
 }
 
 # Human-readable SHAP feature labels for the player detail chart
@@ -163,7 +160,6 @@ FEATURE_LABELS = {
     "ast":              "Assist rate",
     "team_ov_sos":      "Strength of schedule",
     "oreb_rate":        "Offensive rebounding rate",
-    "weight_lbs":       "Body weight (lbs)",
     "dporpag":          "Defensive production (Def PORPAG)",
     "blk":              "Block rate",
     "stl":              "Steal rate",
@@ -226,12 +222,6 @@ _STAT_HELP = {
         "Turnover Rate. Turnovers per 100 possessions used. Lower is better. "
         "Disciplined: below 12%. Average: about 15%. Concern: above 20%. "
         "Read alongside usage; players with higher usage tend to turn it over more."
-    ),
-    "weight_lbs": (
-        "Player weight in pounds, sourced from Sports Reference. "
-        "Heavier players at a given height tend to handle the physical demands "
-        "of high-major play better. N/A means the player is not yet in the "
-        "Sports Reference database — run scripts/fetch_weights.py to update."
     ),
     "dporpag": (
         "Defensive Points Over Replacement Per Adjusted Game. "
@@ -666,8 +656,8 @@ def main() -> None:
         "Avg Projected PORPAG",
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
-    unrecruited = int(filtered["rec"].isna().sum()) if not filtered.empty else 0
-    m4.metric("Unrecruited Players", unrecruited)
+    top_conf = filtered["conf"].value_counts().index[0] if not filtered.empty else "-"
+    m4.metric("Most represented conf", top_conf)
 
     # -----------------------------------------------------------------------
     # Board table
@@ -691,8 +681,6 @@ def main() -> None:
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.2f")
         elif col in ("usg", "ortg", "ts", "ast", "to", "ftr"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.1f")
-        elif col in ("rec", "pick"):
-            col_cfg[col] = st.column_config.NumberColumn(label, format="%.0f")
         elif col == "g":
             col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
         else:
@@ -737,22 +725,13 @@ def main() -> None:
 
     with left:
         ht = row.get("inches")
-        ht_str = (
-            f"{int(ht) // 12}'{int(ht) % 12}\"" if pd.notna(ht) else "N/A"
-        )
-        wt = row.get("weight_lbs")
-        wt_str = f"{int(wt)} lbs" if pd.notna(wt) else "N/A"
-        rec_val = row.get("rec")
-        rec_str = f"{int(rec_val)}" if pd.notna(rec_val) else "Unranked"
+        ht_str = f"{int(ht) // 12}'{int(ht) % 12}\"" if pd.notna(ht) else "N/A"
 
         st.markdown(
             f"**{row['player']}**  |  {row.get('pos', '')}  |  "
             f"{row['team']} ({row['conf']})  |  {row.get('exp', '')}"
         )
-        st.caption(
-            f"Height: {ht_str}  |  Weight: {wt_str}  |  "
-            f"Recruit ranking: {rec_str}  |  Games: {int(row['g'])}"
-        )
+        st.caption(f"Height: {ht_str}  |  Games: {int(row['g'])}")
 
         st.markdown("**Production**")
         pc1, pc2 = st.columns(2)
