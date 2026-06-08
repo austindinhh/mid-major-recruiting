@@ -336,8 +336,11 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
 
     # pred_contrib returns (n_samples, n_features + 1); last col is bias
     contribs = model.predict(X, pred_contrib=True)[0, :-1]
+    # Exclude origin PORPAG — it dominates by design and obscures the other drivers.
+    # Showing what *else* moves the needle is more useful for a GM.
     series = (
         pd.Series(contribs, index=feat_cols)
+        .drop(labels=[c for c in feat_cols if c == "porpag"], errors="ignore")
         .rename(index=FEATURE_LABELS)
         .sort_values(key=abs, ascending=False)
         .head(10)
@@ -551,16 +554,17 @@ def find_comps(
     pool = pool.sort_values("_dist").drop_duplicates(subset=["player", "dest_season"], keep="first")
     nearest = pool.nsmallest(n, "_dist")
 
-    # Attach predicted and actual from hist_preds where available
+    # actual_porpag is always available from training_pairs target column.
+    # projected_porpag is only available from hist_preds (dest_season >= 2020).
+    nearest["actual_porpag"] = nearest["target"]
     if hist_preds is not None:
         nearest = nearest.merge(
-            hist_preds[["player", "season", "dest_season", "projected_porpag", "actual_porpag"]],
+            hist_preds[["player", "season", "dest_season", "projected_porpag"]],
             on=["player", "season", "dest_season"],
             how="left",
         )
     else:
         nearest["projected_porpag"] = np.nan
-        nearest["actual_porpag"] = nearest["target"]
 
     return nearest[["player", "from_team", "from_conf", "to_team", "to_conf",
                      "dest_season", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
