@@ -352,7 +352,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
     )
     fig.update_layout(
         title="What Drives This Projection",
-        xaxis_title="Contribution to projected PORPAG",
+        xaxis_title="Contribution to Projected PORPAG",
         height=360,
         margin=dict(l=0, r=10, t=40, b=20),
         plot_bgcolor="#FFFFFF",
@@ -424,7 +424,7 @@ def career_chart(
         ))
 
     fig.update_layout(
-        title="Career PORPAG By Season",
+        title="Career PORPAG by Season",
         height=300,
         margin=dict(l=0, r=0, t=40, b=10),
         plot_bgcolor="#FFFFFF",
@@ -483,7 +483,7 @@ def shot_profile_chart(player_row: pd.Series) -> go.Figure | None:
         ))
 
     fig.update_layout(
-        title="Shot Distribution (share/make%)",
+        title="Shot Profile",
         barmode="stack",
         height=130,
         margin=dict(l=0, r=0, t=36, b=0),
@@ -656,8 +656,8 @@ def main() -> None:
         "Avg Projected PORPAG",
         f"{filtered['projected_porpag'].mean():.2f}" if not filtered.empty else "-",
     )
-    top_conf = filtered["conf"].value_counts().index[0] if not filtered.empty else "-"
-    m4.metric("Most represented conf", top_conf)
+    proj_starters = int((filtered["projected_porpag"] >= 2.0).sum()) if not filtered.empty else 0
+    m4.metric("Proj Starters (≥ 2.0 PORPAG)", proj_starters)
 
     # -----------------------------------------------------------------------
     # Board table
