@@ -2,6 +2,8 @@
 
 An analytics tool that identifies the most valuable mid-major transfer targets for Illinois basketball. The model projects how any non-high-major D1 player would produce at the Big Ten level, then ranks them by that projection.
 
+**Live app:** https://mid-major-recruiting.streamlit.app/
+
 ---
 
 ## The Problem It Solves
