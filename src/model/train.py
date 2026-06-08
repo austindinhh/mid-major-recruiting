@@ -130,9 +130,11 @@ _STAT_CONTEXT_FEATS = ["origin_level", "destination_level", "usg", "porpag", "ex
 
 def train_stat_models(pairs: pd.DataFrame) -> dict:
     """
-    Trains one Ridge pipeline per box stat (ppg, rpg, apg, spg, bpg) to translate
+    Trains one LightGBM model per box stat (ppg, rpg, apg, spg, bpg) to translate
     a player's origin stats to what they'd produce at the destination competition level.
-    Returns a dict keyed by stat name: {"model": Pipeline, "feature_cols": [...]}.
+    LightGBM handles NaN natively and learns the non-linear relationship between
+    origin production level and competition-level haircut (elite scorers drop less).
+    Returns a dict keyed by stat name: {"model": LGBMRegressor, "feature_cols": [...]}.
     """
     models = {}
     for stat in _BOX_STATS:
@@ -142,21 +144,29 @@ def train_stat_models(pairs: pd.DataFrame) -> dict:
             continue
         context = [f for f in _STAT_CONTEXT_FEATS if f in pairs.columns]
         feat_cols = [stat] + context
-        sub = pairs[feat_cols + [dest_col]].dropna()
+        sub = pairs[[c for c in feat_cols + [dest_col] if c in pairs.columns]].copy()
+        sub = sub.dropna(subset=[dest_col])
         if len(sub) < 100:
             print(f"[model] Stat model {stat}: skipped (only {len(sub)} complete rows)")
             continue
         X = sub[feat_cols]
         y = sub[dest_col]
-        pipe = Pipeline([
-            ("imputer", SimpleImputer(strategy="median")),
-            ("scaler", StandardScaler()),
-            ("ridge", Ridge(alpha=1.0)),
-        ])
-        pipe.fit(X, y)
-        train_mae = float(mean_absolute_error(y, pipe.predict(X)))
+        model = lgb.LGBMRegressor(
+            n_estimators=500,
+            learning_rate=0.05,
+            num_leaves=15,
+            min_child_samples=20,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_lambda=1.0,
+            random_state=RANDOM_SEED,
+            n_jobs=1,
+            verbose=-1,
+        )
+        model.fit(X, y)
+        train_mae = float(mean_absolute_error(y, model.predict(X)))
         print(f"[model] Stat model {stat:<5s}: train MAE={train_mae:.3f}  n={len(sub):,}")
-        models[stat] = {"model": pipe, "feature_cols": feat_cols}
+        models[stat] = {"model": model, "feature_cols": feat_cols}
     return models
 
 

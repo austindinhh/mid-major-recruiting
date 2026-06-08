@@ -59,12 +59,12 @@ def project_box_stats(players: pd.DataFrame, destination_level: float) -> pd.Dat
     players = players.copy()
     players["destination_level"] = destination_level
     for stat, model_info in stat_models.items():
-        pipe = model_info["model"]
+        model = model_info["model"]
         feat_cols = model_info["feature_cols"]
         available = [f for f in feat_cols if f in players.columns]
-        if len(available) < len(feat_cols):
+        if not available:
             continue
-        players[f"projected_{stat}"] = pipe.predict(players[available])
+        players[f"projected_{stat}"] = model.predict(players[available])
     return players
 
 
