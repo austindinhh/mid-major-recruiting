@@ -108,8 +108,9 @@ hr {
 # Constants
 # ---------------------------------------------------------------------------
 
-APP_CONFIG_PATH = DATA_DIR / "app_config.json"
-HIST_PREDS_PATH = DATA_DIR / "historical_predictions.parquet"
+APP_CONFIG_PATH      = DATA_DIR / "app_config.json"
+HIST_PREDS_PATH      = DATA_DIR / "historical_predictions.parquet"
+PLAYER_SEASONS_PATH  = DATA_DIR / "player_seasons.parquet"
 
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
@@ -314,6 +315,11 @@ def load_historical_predictions() -> pd.DataFrame | None:
         return None
     return pd.read_parquet(HIST_PREDS_PATH)
 
+
+@st.cache_data
+def load_player_seasons() -> pd.DataFrame:
+    return pd.read_parquet(PLAYER_SEASONS_PATH)
+
 # ---------------------------------------------------------------------------
 # Core functions
 # ---------------------------------------------------------------------------
@@ -368,6 +374,78 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
     fig.add_vline(x=0, line_color="#13294B", line_width=0.8)
     return fig
 
+
+def career_chart(
+    player_seasons: pd.DataFrame,
+    player_id,
+    high_major_confs: set,
+    mid_major_confs: set,
+) -> go.Figure | None:
+    career = (
+        player_seasons[player_seasons["id"] == player_id]
+        .sort_values("year")
+        .copy()
+    )
+    if len(career) < 2:
+        return None
+
+    x_labels = [
+        f"{_season_label(int(row.year))}<br><sub>{row.team} ({row.conf})</sub>"
+        for row in career.itertuples()
+    ]
+
+    fig = go.Figure()
+
+    # Neutral connecting line
+    fig.add_trace(go.Scatter(
+        x=x_labels,
+        y=career["porpag"],
+        mode="lines",
+        line=dict(color="#cccccc", width=2),
+        hoverinfo="skip",
+        showlegend=False,
+    ))
+
+    career = career.reset_index(drop=True)
+
+    # One trace per tier so the legend is automatic
+    tier_defs = [
+        ("High-major", "#FF5F05", high_major_confs),
+        ("Mid-major",  "#13294B", mid_major_confs),
+        ("Low-major",  "#aaaaaa", None),
+    ]
+    for tier_label, color, conf_set in tier_defs:
+        mask = (
+            career["conf"].isin(conf_set) if conf_set is not None
+            else ~career["conf"].isin(high_major_confs | mid_major_confs)
+        )
+        subset = career[mask]
+        if subset.empty:
+            continue
+        subset_x = [x_labels[i] for i in subset.index]
+        fig.add_trace(go.Scatter(
+            x=subset_x,
+            y=subset["porpag"],
+            mode="markers",
+            name=tier_label,
+            marker=dict(color=color, size=11, line=dict(color="#ffffff", width=1.5)),
+            hovertemplate="%{x}<br>PORPAG: %{y:.2f}<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title="Career PORPAG By Season",
+        height=300,
+        margin=dict(l=0, r=0, t=40, b=10),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        font=dict(size=11, color="#13294B"),
+        title_font=dict(color="#13294B"),
+        xaxis=dict(color="#13294B", tickangle=-20),
+        yaxis=dict(title="PORPAG", color="#13294B", zeroline=True, zerolinecolor="#cccccc"),
+        legend=dict(orientation="h", y=-0.25, font=dict(size=10)),
+    )
+    return fig
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
@@ -380,6 +458,7 @@ def main() -> None:
     st.markdown(_ILLINOIS_CSS, unsafe_allow_html=True)
     model = load_model()
     hist_preds = load_historical_predictions()
+    player_seasons = load_player_seasons()
 
     cfg = load_app_config()
     available_seasons = sorted(cfg.get("available_seasons", [2023]), reverse=True)
@@ -662,6 +741,15 @@ def main() -> None:
                 st.metric("Obscurity", f"{row.get('obscurity', 0):.2f}", help=_STAT_HELP["obscurity"])
             with oc3:
                 st.metric("Conference", row["conf"])
+
+        player_id = row.get("id")
+        if player_id is not None:
+            fig_career = career_chart(
+                player_seasons, player_id,
+                HIGH_MAJOR_CONFERENCES, MID_MAJOR_CONFERENCES,
+            )
+            if fig_career is not None:
+                st.plotly_chart(fig_career, use_container_width=True)
 
 
 if __name__ == "__main__":
