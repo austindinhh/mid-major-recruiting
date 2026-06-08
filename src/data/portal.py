@@ -88,16 +88,16 @@ def _fetch_weight(name: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def fetch_player_weights(enriched: pd.DataFrame, force: bool = False) -> pd.DataFrame:
+def fetch_player_weights(players: pd.DataFrame, force: bool = False) -> pd.DataFrame:
     """
-    Fetch weight (lbs) from Sports Reference for each unique player in `enriched`.
+    Fetch weight (lbs) from Sports Reference for each unique player in `players`.
     Results are merged into the persistent cache at WEIGHT_DATA_PATH.
     Only fetches players not already in cache (unless force=True).
     """
     cached = None if force else load(WEIGHT_DATA_PATH)
     already: set[str] = set(cached["player"].str.lower()) if cached is not None else set()
 
-    unique_players = enriched[["player"]].drop_duplicates()
+    unique_players = players[["player"]].drop_duplicates()
     to_fetch = unique_players[~unique_players["player"].str.lower().isin(already)]
 
     print(f"[portal] Fetching weight for {len(to_fetch):,} players from Sports-Reference...")

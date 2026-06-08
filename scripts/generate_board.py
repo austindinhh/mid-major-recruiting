@@ -1,8 +1,8 @@
 """
-Generates scouting boards and per-season enriched inference files for the app.
+Generates scouting boards and per-season player files for the app.
 
-  gems      — projected PORPAG x obscurity (players nobody is looking at)
-  transfers — raw projected PORPAG (best available regardless of fame)
+  transfers — ranked by raw projected PORPAG
+  gems      — ranked by projected PORPAG x obscurity
 
 Run: python scripts/generate_board.py
 """
@@ -16,7 +16,7 @@ import json
 import pandas as pd
 from src.config import DATA_DIR, FIRST_SEASON, HIGH_MAJOR_CONFERENCES, LAST_SEASON
 from src.data.fetch import fetch_player_seasons, fetch_teams
-from src.features.build import enrich_player_seasons
+from src.features.build import build_player_features
 from src.model.predict import project_players, add_gem_score, get_target_level
 
 GEMS_PATH         = DATA_DIR / "board_gems.parquet"
@@ -27,39 +27,39 @@ HIST_PREDS_PATH   = DATA_DIR / "historical_predictions.parquet"
 DISPLAY_COLS = ["player", "pos", "team", "conf", "porpag", "projected_porpag"]
 
 
-def _save_enriched(enriched: pd.DataFrame, season: int) -> int:
-    enriched_app = enriched[
-        (enriched["year"] == season) &
-        (~enriched["conf"].isin(HIGH_MAJOR_CONFERENCES))
+def _save_players(players: pd.DataFrame, season: int) -> int:
+    season_players = players[
+        (players["year"] == season) &
+        (~players["conf"].isin(HIGH_MAJOR_CONFERENCES))
     ].copy()
-    enriched_app["origin_level"] = enriched_app["conf_barthag"]
-    path = DATA_DIR / f"enriched_{season}.parquet"
-    enriched_app.to_parquet(path, index=False)
-    return len(enriched_app)
+    season_players["origin_level"] = season_players["conf_barthag"]
+    path = DATA_DIR / f"players_{season}.parquet"
+    season_players.to_parquet(path, index=False)
+    return len(season_players)
 
 
 def generate_boards(
     season: int = LAST_SEASON,
-    enriched: pd.DataFrame | None = None,
+    players: pd.DataFrame | None = None,
     teams: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    if enriched is None or teams is None:
+    if players is None or teams is None:
         ps = fetch_player_seasons()
         teams = fetch_teams()
-        enriched = enrich_player_seasons(ps, teams)
+        players = build_player_features(ps, teams)
 
     target_level = get_target_level(teams, season)
     print(f"[board] {season}: projecting to high-major level {target_level:.4f}")
 
-    players = project_players(enriched, teams, season=season, destination_level=target_level)
-    players = add_gem_score(players)
+    projected = project_players(players, teams, season=season, destination_level=target_level)
+    projected = add_gem_score(projected)
 
     # Remove players who have exhausted their eligibility (5+ seasons played).
     # Seniors with fewer than 5 seasons are still eligible as grad transfers.
-    if "seasons_played" in players.columns:
-        before = len(players)
-        players = players[players["seasons_played"] < 5]
-        print(f"[board] {season}: removed {before - len(players)} ineligible players (5+ seasons played)")
+    if "seasons_played" in projected.columns:
+        before = len(projected)
+        projected = projected[projected["seasons_played"] < 5]
+        print(f"[board] {season}: removed {before - len(projected)} ineligible players (5+ seasons played)")
 
     save_cols = [
         "player", "pos", "team", "conf", "year",
@@ -69,15 +69,15 @@ def generate_boards(
         "rec", "obscurity", "gem_score",
         "exp", "seasons_played", "inches", "id",
     ]
-    save_cols = [c for c in save_cols if c in players.columns]
+    save_cols = [c for c in save_cols if c in projected.columns]
 
     gems = (
-        players[players["projected_porpag"] > 0][save_cols]
+        projected[projected["projected_porpag"] > 0][save_cols]
         .sort_values("gem_score", ascending=False)
         .reset_index(drop=True)
     )
     transfers = (
-        players[save_cols]
+        projected[save_cols]
         .sort_values("projected_porpag", ascending=False)
         .reset_index(drop=True)
     )
@@ -86,8 +86,8 @@ def generate_boards(
         gems.to_parquet(GEMS_PATH, index=False)
         transfers.to_parquet(TRANSFERS_PATH, index=False)
 
-    n_rows = _save_enriched(enriched, season)
-    print(f"[board] {season}: {len(gems)} gems | {len(transfers)} transfers | {n_rows} inference rows")
+    n_rows = _save_players(players, season)
+    print(f"[board] {season}: {len(gems)} gems | {len(transfers)} transfers | {n_rows} player rows")
     return gems, transfers
 
 
@@ -120,16 +120,15 @@ def generate_historical_predictions() -> None:
 def main() -> None:
     ps = fetch_player_seasons()
     teams = fetch_teams()
-    enriched = enrich_player_seasons(ps, teams)
+    players = build_player_features(ps, teams)
 
     available_seasons = sorted(
-        enriched["year"].dropna().astype(int).unique().tolist()
+        players["year"].dropna().astype(int).unique().tolist()
     )
 
     for season in available_seasons:
-        generate_boards(season=season, enriched=enriched, teams=teams)
+        generate_boards(season=season, players=players, teams=teams)
 
-    # High-major level for the default (most recent) season
     default_level = get_target_level(teams, LAST_SEASON)
     app_cfg = {
         "default_dest_level": round(default_level, 4),

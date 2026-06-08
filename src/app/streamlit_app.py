@@ -262,15 +262,15 @@ def load_app_config() -> dict:
 
 
 @st.cache_data
-def load_enriched(season: int) -> tuple[pd.DataFrame, dict]:
-    path = DATA_DIR / f"enriched_{season}.parquet"
+def load_season_players(season: int) -> tuple[pd.DataFrame, dict]:
+    path = DATA_DIR / f"players_{season}.parquet"
     if not path.exists():
         st.error(f"Data for {season} not found. Run `python scripts/generate_board.py` first.")
         st.stop()
     df = pd.read_parquet(path)
 
     # Tier levels computed from conference barthag averages in the selected season's data.
-    # High-major teams are excluded from enriched files (they're not transfer targets),
+    # High-major teams are excluded from per-season player files (they're not transfer targets),
     # so the high-major level comes from app_config.
     conf_levels = df.groupby("conf")["conf_barthag"].first()
     mid_level = float(conf_levels[conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
@@ -315,8 +315,8 @@ def load_training_pairs() -> pd.DataFrame | None:
 # Core functions
 # ---------------------------------------------------------------------------
 
-def project(enriched: pd.DataFrame, dest_level: float, model) -> pd.DataFrame:
-    df = enriched.copy()
+def project(players: pd.DataFrame, dest_level: float, model) -> pd.DataFrame:
+    df = players.copy()
     df["destination_level"] = dest_level
     feat_cols = [c for c in FEATURE_COLS if c in df.columns]
     df["projected_porpag"] = model.predict(df[feat_cols])
@@ -591,13 +591,13 @@ def main() -> None:
         )
         season = season_labels[selected_label]
 
-        enriched, tier_levels = load_enriched(season)
+        season_players, tier_levels = load_season_players(season)
         dest_level = tier_levels["High-Major"]
 
-        all_pos     = sorted(enriched["pos"].dropna().unique())
-        all_confs   = sorted(enriched["conf"].dropna().unique())
+        all_pos     = sorted(season_players["pos"].dropna().unique())
+        all_confs   = sorted(season_players["conf"].dropna().unique())
         all_classes = [c for c in ["Fr", "So", "Jr", "Sr", "Gr"]
-                       if c in enriched["exp"].values]
+                       if c in season_players["exp"].values]
 
         pos_filter   = st.multiselect("Position", all_pos)
         conf_filter  = st.multiselect("Conference", all_confs)
@@ -612,7 +612,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # Project + filter
     # -----------------------------------------------------------------------
-    projected = project(enriched, dest_level, model)
+    projected = project(season_players, dest_level, model)
 
     mask = projected["g"] >= 10
     if pos_filter:
@@ -792,18 +792,18 @@ def main() -> None:
                     st.metric("Difference", f"{err:+.2f}", delta=f"{err:+.2f}")
 
     with right:
-        enriched_row = projected[projected["player"] == selected]
+        player_row = projected[projected["player"] == selected]
         try:
-            if not enriched_row.empty:
-                fig = contribution_chart(enriched_row.iloc[0], model)
+            if not player_row.empty:
+                fig = contribution_chart(player_row.iloc[0], model)
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("Feature contribution unavailable for this player.")
         except Exception as exc:
             st.caption(f"Contribution chart unavailable: {exc}")
 
-        if not enriched_row.empty:
-            fig_shot = shot_profile_chart(enriched_row.iloc[0])
+        if not player_row.empty:
+            fig_shot = shot_profile_chart(player_row.iloc[0])
             if fig_shot is not None:
                 st.plotly_chart(fig_shot, use_container_width=True)
 
@@ -817,9 +817,9 @@ def main() -> None:
                 st.plotly_chart(fig_career, use_container_width=True)
 
         if training_pairs is not None:
-            enriched_row = projected[projected["player"] == selected]
-            if not enriched_row.empty:
-                comps = find_comps(enriched_row.iloc[0], training_pairs, hist_preds, season)
+            player_row = projected[projected["player"] == selected]
+            if not player_row.empty:
+                comps = find_comps(player_row.iloc[0], training_pairs, hist_preds, season)
                 if not comps.empty:
                     st.markdown("**Similar Historical Transfers**")
                     for _, comp in comps.iterrows():

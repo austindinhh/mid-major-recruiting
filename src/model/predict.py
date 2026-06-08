@@ -19,7 +19,7 @@ def get_target_level(teams: pd.DataFrame, season: int) -> float:
 
 
 def project_players(
-    enriched: pd.DataFrame,
+    players: pd.DataFrame,
     teams: pd.DataFrame,
     season: int = LAST_SEASON,
     destination_level: float | None = None,
@@ -35,9 +35,9 @@ def project_players(
     if destination_level is None:
         destination_level = get_target_level(teams, season)
 
-    players = enriched[
-        (enriched["year"] == season) &
-        (~enriched["conf"].isin(HIGH_MAJOR_CONFERENCES))
+    players = players[
+        (players["year"] == season) &
+        (~players["conf"].isin(HIGH_MAJOR_CONFERENCES))
     ].copy()
 
     players["origin_level"] = players["conf_barthag"]

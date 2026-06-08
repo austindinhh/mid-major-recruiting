@@ -1,7 +1,7 @@
 """
 Feature engineering and training pair construction.
 
-  enrich_player_seasons()  — joins team ratings, computes derived columns
+  build_player_features()  — joins team ratings, computes derived columns
   build_transfer_pairs()   — creates one row per transfer: origin features + target
   get_feature_matrix()     — extracts X (features) and y (target) for the model
 """
@@ -12,7 +12,7 @@ import pandas as pd
 from ..config import TARGET_METRIC, TRAINING_PAIRS_PATH
 from ..data.portal import load_weight_data
 
-# Exact column names as they appear after enrichment
+# Exact column names as they appear after feature engineering
 FEATURE_COLS = [
     # Core value metrics at origin
     TARGET_METRIC,
@@ -66,10 +66,15 @@ def _conf_levels(teams: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def enrich_player_seasons(
+def build_player_features(
     player_seasons: pd.DataFrame,
     teams: pd.DataFrame,
 ) -> pd.DataFrame:
+    """
+    Joins team ratings and computes derived columns (encoded experience/position,
+    shooting rates, competition levels, YoY trajectory, eligibility counter).
+    Returns one row per player-season ready for model training and inference.
+    """
     ps = player_seasons.copy()
 
     # Normalize year to int for consistent joins
@@ -116,7 +121,7 @@ def enrich_player_seasons(
     ps["seasons_played"] = ps.groupby("id").cumcount() + 1
 
     print(
-        f"[features] Enriched {len(ps):,} player-seasons | "
+        f"[features] Built features for {len(ps):,} player-seasons | "
         f"team join fill rate: {ps['team_barthag'].notna().mean():.1%} | "
         f"conf level fill rate: {ps['conf_barthag'].notna().mean():.1%}"
     )
@@ -124,13 +129,13 @@ def enrich_player_seasons(
 
 
 def build_transfer_pairs(
-    enriched: pd.DataFrame,
+    players: pd.DataFrame,
     transfers: pd.DataFrame,
 ) -> pd.DataFrame:
     """
     Produces one row per transfer event:
       - All FEATURE_COLS drawn from the player's origin season
-      - origin_level  = conf_barthag at origin (already in enriched)
+      - origin_level  = conf_barthag at origin (already in players)
       - destination_level = conf_barthag at destination (from dest-year row)
       - target = TARGET_METRIC value in the destination season
 
@@ -147,13 +152,13 @@ def build_transfer_pairs(
         + [c for c in FEATURE_COLS if c not in ("origin_level", "destination_level")]
         + ["conf_barthag"]
     )
-    origin = enriched[[c for c in origin_cols if c in enriched.columns]].copy()
+    origin = players[[c for c in origin_cols if c in players.columns]].copy()
     origin = origin.rename(columns={"year": "season", "conf_barthag": "origin_level"})
 
     pairs = transfers.merge(origin, on=["id", "season"], how="inner")
 
     # Destination: target value + destination conference level
-    dest = enriched[["id", "year", TARGET_METRIC, "conf_barthag"]].copy()
+    dest = players[["id", "year", TARGET_METRIC, "conf_barthag"]].copy()
     dest = dest.rename(
         columns={
             "year": "dest_season",

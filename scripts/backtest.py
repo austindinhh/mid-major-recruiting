@@ -21,7 +21,7 @@ import pandas as pd
 from src.config import HIGH_MAJOR_CONFERENCES, TRANSFERS_PATH
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.data.cache import load
-from src.features.build import enrich_player_seasons
+from src.features.build import build_player_features
 from src.model.predict import project_players, get_target_level
 
 
@@ -29,11 +29,11 @@ def backtest(origin_season: int = 2021, dest_season: int = 2022) -> dict:
     ps = fetch_player_seasons()
     teams = fetch_teams()
     transfers = load(TRANSFERS_PATH)
-    enriched = enrich_player_seasons(ps, teams)
+    players = build_player_features(ps, teams)
 
     target_level = get_target_level(teams, origin_season)
     projected = (
-        project_players(enriched, teams, season=origin_season, destination_level=target_level)
+        project_players(players, teams, season=origin_season, destination_level=target_level)
         .sort_values("projected_porpag", ascending=False)
         .reset_index(drop=True)
     )
@@ -82,13 +82,13 @@ def case_studies(n: int = 8) -> pd.DataFrame:
     ps = fetch_player_seasons()
     teams = fetch_teams()
     transfers = load(TRANSFERS_PATH)
-    enriched = enrich_player_seasons(ps, teams)
+    players = build_player_features(ps, teams)
 
     rows = []
     for origin_yr in range(2016, 2023):
         dest_yr = origin_yr + 1
         target_level = get_target_level(teams, origin_yr)
-        projected = project_players(enriched, teams, season=origin_yr, destination_level=target_level)
+        projected = project_players(players, teams, season=origin_yr, destination_level=target_level)
         proj_lookup = projected.set_index("id")["projected_porpag"].to_dict()
 
         actual_up = transfers[

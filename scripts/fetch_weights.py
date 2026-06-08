@@ -14,17 +14,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.data.portal import fetch_player_weights
-from src.features.build import enrich_player_seasons
+from src.features.build import build_player_features
 
 
 def main() -> None:
-    print("Loading enriched player data...")
+    print("Loading player data...")
     ps = fetch_player_seasons()
     teams = fetch_teams()
-    enriched = enrich_player_seasons(ps, teams)
-    print(f"  {len(enriched):,} player-seasons, {enriched['player'].nunique():,} unique players")
+    players = build_player_features(ps, teams)
+    print(f"  {len(players):,} player-seasons, {players['player'].nunique():,} unique players")
 
-    fetch_player_weights(enriched)
+    fetch_player_weights(players)
     print("\nDone. Re-run generate_board.py to apply weight data to the scouting boards.")
 
 

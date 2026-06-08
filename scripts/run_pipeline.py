@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.fetch import fetch_player_seasons, fetch_transfers, fetch_teams
 from src.features.build import (
-    enrich_player_seasons,
+    build_player_features,
     build_transfer_pairs,
     get_feature_matrix,
     save_pairs,
@@ -34,8 +34,8 @@ def main() -> None:
     print("\n=== Step 2: Build features ===")
     pairs = load_pairs()
     if pairs is None:
-        enriched = enrich_player_seasons(player_seasons, teams)
-        pairs = build_transfer_pairs(enriched, transfers)
+        players = build_player_features(player_seasons, teams)
+        pairs = build_transfer_pairs(players, transfers)
         save_pairs(pairs)
 
     X, y, groups = get_feature_matrix(pairs)
