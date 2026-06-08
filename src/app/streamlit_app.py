@@ -111,6 +111,10 @@ hr {
 APP_CONFIG_PATH      = DATA_DIR / "app_config.json"
 HIST_PREDS_PATH      = DATA_DIR / "historical_predictions.parquet"
 PLAYER_SEASONS_PATH  = DATA_DIR / "player_seasons.parquet"
+TRAINING_PAIRS_PATH  = DATA_DIR / "training_pairs.parquet"
+
+# Features used for nearest-neighbour comp matching (scale-invariant subset)
+_COMP_FEATURES = ["porpag", "usg", "ts", "dporpag", "exp_num", "origin_level", "porpag_trend"]
 
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
@@ -320,6 +324,13 @@ def load_historical_predictions() -> pd.DataFrame | None:
 def load_player_seasons() -> pd.DataFrame:
     return pd.read_parquet(PLAYER_SEASONS_PATH)
 
+
+@st.cache_data
+def load_training_pairs() -> pd.DataFrame | None:
+    if not TRAINING_PAIRS_PATH.exists():
+        return None
+    return pd.read_parquet(TRAINING_PAIRS_PATH)
+
 # ---------------------------------------------------------------------------
 # Core functions
 # ---------------------------------------------------------------------------
@@ -450,6 +461,55 @@ def career_chart(
 # App
 # ---------------------------------------------------------------------------
 
+def find_comps(
+    player_row: pd.Series,
+    training_pairs: pd.DataFrame,
+    hist_preds: pd.DataFrame,
+    current_season: int,
+    n: int = 3,
+) -> pd.DataFrame:
+    """
+    Return the n most similar completed upward-to-high-major transfers using
+    L2 distance on _COMP_FEATURES, min-max normalised across the candidate pool.
+    Only uses dest_season < current_season so a GM only sees outcomes that
+    have already happened.
+    """
+    pool = training_pairs[
+        (training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES))
+        & (training_pairs["dest_season"] < current_season)
+        & (training_pairs["player"] != player_row.get("player", ""))
+    ].copy()
+
+    cols = [c for c in _COMP_FEATURES if c in pool.columns and c in player_row.index]
+    pool = pool.dropna(subset=cols)
+
+    # Min-max scale so no single feature dominates
+    mins = pool[cols].min()
+    maxs = pool[cols].max()
+    rng = (maxs - mins).replace(0, 1)
+    pool_scaled = (pool[cols] - mins) / rng
+
+    target = pd.to_numeric(player_row[cols], errors="coerce").fillna(0)
+    target_scaled = (target - mins) / rng
+
+    pool["_dist"] = np.sqrt(((pool_scaled - target_scaled) ** 2).sum(axis=1))
+    nearest = pool.nsmallest(n, "_dist")
+
+    # Attach predicted and actual from hist_preds where available
+    if hist_preds is not None:
+        nearest = nearest.merge(
+            hist_preds[["player", "season", "dest_season", "projected_porpag", "actual_porpag"]],
+            on=["player", "season", "dest_season"],
+            how="left",
+        )
+    else:
+        nearest["projected_porpag"] = np.nan
+        nearest["actual_porpag"] = nearest["target"]
+
+    return nearest[["player", "from_team", "from_conf", "to_team", "to_conf",
+                     "dest_season", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
+
+
 def _season_label(year: int) -> str:
     return f"{year - 1}-{str(year)[2:]}"
 
@@ -459,6 +519,7 @@ def main() -> None:
     model = load_model()
     hist_preds = load_historical_predictions()
     player_seasons = load_player_seasons()
+    training_pairs = load_training_pairs()
 
     cfg = load_app_config()
     available_seasons = sorted(cfg.get("available_seasons", [2023]), reverse=True)
@@ -750,6 +811,24 @@ def main() -> None:
             )
             if fig_career is not None:
                 st.plotly_chart(fig_career, use_container_width=True)
+
+        if training_pairs is not None:
+            enriched_row = projected[projected["player"] == selected]
+            if not enriched_row.empty:
+                comps = find_comps(enriched_row.iloc[0], training_pairs, hist_preds, season)
+                if not comps.empty:
+                    st.markdown("**Similar historical transfers**")
+                    for _, comp in comps.iterrows():
+                        season_str = _season_label(int(comp["dest_season"]))
+                        pred = comp["projected_porpag"]
+                        actual = comp["actual_porpag"]
+                        pred_str = f"{pred:.2f}" if pd.notna(pred) else "—"
+                        actual_str = f"{actual:.2f}" if pd.notna(actual) else "—"
+                        st.caption(
+                            f"**{comp['player']}** &nbsp; {comp['from_team']} ({comp['from_conf']}) "
+                            f"→ {comp['to_team']} ({comp['to_conf']}) &nbsp; {season_str} &nbsp;|&nbsp; "
+                            f"Projected {pred_str} · Actual {actual_str}"
+                        )
 
 
 if __name__ == "__main__":
