@@ -562,6 +562,10 @@ def find_comps(
     target_scaled = (target - mins) / rng
 
     pool["_dist"] = np.sqrt((w * (pool_scaled - target_scaled) ** 2).sum(axis=1))
+
+    # A player may appear multiple times (one row per origin season feeding the same
+    # destination). Keep only the closest-distance row per unique transfer event.
+    pool = pool.sort_values("_dist").drop_duplicates(subset=["player", "dest_season"], keep="first")
     nearest = pool.nsmallest(n, "_dist")
 
     # Attach predicted and actual from hist_preds where available
