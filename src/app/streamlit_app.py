@@ -12,6 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+_BLOCK_I = ROOT / "assets" / "block_i.png"
+
 import re
 from urllib.parse import quote
 import numpy as np
@@ -29,7 +31,8 @@ from src.model.train import load_lgbm
 # ---------------------------------------------------------------------------
 
 st.set_page_config(
-    page_title="Mid-Major Scouting Board",
+    page_title="Illinois Transfer Portal Scouting Board",
+    page_icon=str(_BLOCK_I) if _BLOCK_I.exists() else "🔶",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -576,6 +579,9 @@ def main() -> None:
 
     cfg = load_app_config()
     available_seasons = sorted(cfg.get("available_seasons", [2023]), reverse=True)
+
+    if _BLOCK_I.exists():
+        st.logo(str(_BLOCK_I), link="https://fightingillini.com/sports/mens-basketball")
 
     # -----------------------------------------------------------------------
     # Sidebar
