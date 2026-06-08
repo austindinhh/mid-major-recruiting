@@ -109,6 +109,7 @@ hr {
 # ---------------------------------------------------------------------------
 
 APP_CONFIG_PATH = DATA_DIR / "app_config.json"
+HIST_PREDS_PATH = DATA_DIR / "historical_predictions.parquet"
 
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
@@ -307,6 +308,12 @@ def load_model():
         st.stop()
     return model
 
+@st.cache_data
+def load_historical_predictions() -> pd.DataFrame | None:
+    if not HIST_PREDS_PATH.exists():
+        return None
+    return pd.read_parquet(HIST_PREDS_PATH)
+
 # ---------------------------------------------------------------------------
 # Core functions
 # ---------------------------------------------------------------------------
@@ -372,6 +379,7 @@ def _season_label(year: int) -> str:
 def main() -> None:
     st.markdown(_ILLINOIS_CSS, unsafe_allow_html=True)
     model = load_model()
+    hist_preds = load_historical_predictions()
 
     cfg = load_app_config()
     available_seasons = sorted(cfg.get("available_seasons", [2023]), reverse=True)
@@ -609,6 +617,29 @@ def main() -> None:
         with dc2:
             st.metric("Oreb%", f"{row.get('oreb_rate', float('nan')):.1f}", help=_STAT_HELP["oreb_rate"])
             st.metric("STL%", f"{row.get('stl', float('nan')):.1f}", help=_STAT_HELP["stl"])
+
+        if hist_preds is not None:
+            player_hist = hist_preds[hist_preds["player"] == selected]
+            if not player_hist.empty:
+                latest = (
+                    player_hist
+                    .sort_values(["dest_season", "season"], ascending=[False, False])
+                    .iloc[0]
+                )
+                dest_label = _season_label(int(latest["dest_season"]))
+                st.divider()
+                st.markdown(
+                    f"**Prediction vs Reality** — "
+                    f"{dest_label} at {latest['to_team']} ({latest['to_conf']})"
+                )
+                pv1, pv2, pv3 = st.columns(3)
+                with pv1:
+                    st.metric("Model Predicted", f"{latest['projected_porpag']:.2f}")
+                with pv2:
+                    st.metric("Actual", f"{latest['actual_porpag']:.2f}")
+                with pv3:
+                    err = latest["error"]
+                    st.metric("Difference", f"{err:+.2f}", delta=f"{err:+.2f}")
 
     with right:
         try:

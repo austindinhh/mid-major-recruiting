@@ -19,9 +19,10 @@ from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import enrich_player_seasons
 from src.model.predict import project_players, add_gem_score, get_target_level
 
-GEMS_PATH       = DATA_DIR / "board_gems.parquet"
-TRANSFERS_PATH  = DATA_DIR / "board_transfers.parquet"
-APP_CONFIG_PATH = DATA_DIR / "app_config.json"
+GEMS_PATH         = DATA_DIR / "board_gems.parquet"
+TRANSFERS_PATH    = DATA_DIR / "board_transfers.parquet"
+APP_CONFIG_PATH   = DATA_DIR / "app_config.json"
+HIST_PREDS_PATH   = DATA_DIR / "historical_predictions.parquet"
 
 DISPLAY_COLS = ["player", "pos", "team", "conf", "porpag", "projected_porpag"]
 
@@ -83,6 +84,32 @@ def generate_boards(
     return gems, transfers
 
 
+def generate_historical_predictions() -> None:
+    from src.features.build import FEATURE_COLS
+    from src.model.train import load_lgbm
+
+    lgbm = load_lgbm()
+    if lgbm is None:
+        print("[board] Skipping historical predictions: model not found.")
+        return
+
+    pairs = pd.read_parquet(DATA_DIR / "training_pairs.parquet")
+    sub = pairs[pairs["dest_season"] >= 2020].copy()
+
+    feat_cols = [c for c in FEATURE_COLS if c in sub.columns]
+    sub["projected_porpag"] = lgbm.predict(sub[feat_cols])
+    sub["actual_porpag"] = sub["target"]
+    sub["error"] = sub["actual_porpag"] - sub["projected_porpag"]
+
+    out = sub[[
+        "player", "from_team", "from_conf", "to_team", "to_conf",
+        "season", "dest_season", "projected_porpag", "actual_porpag", "error"
+    ]].reset_index(drop=True)
+
+    out.to_parquet(HIST_PREDS_PATH, index=False)
+    print(f"[board] historical_predictions: {len(out):,} rows -> {HIST_PREDS_PATH.name}")
+
+
 def main() -> None:
     ps = fetch_player_seasons()
     teams = fetch_teams()
@@ -105,6 +132,7 @@ def main() -> None:
     with open(APP_CONFIG_PATH, "w") as f:
         json.dump(app_cfg, f, indent=2)
 
+    generate_historical_predictions()
     print(f"\n[board] Done. {len(available_seasons)} seasons | app_config.json updated")
 
 
