@@ -143,7 +143,6 @@ COL_LABELS = {
     "ftr":               "FTR",
     "rec":               "Recruit",
     "pick":              "Draft Pick",
-    "gem_score":         "Gem Score",
 }
 
 # Human-readable SHAP feature labels for the player detail chart
@@ -177,6 +176,9 @@ FEATURE_LABELS = {
     "inches":           "Height",
     "team_adj_o":       "Offensive team environment",
     "pos_num":          "Position",
+    "porpag_trend":     "Year-over-year PORPAG change",
+    "obpm":             "Offensive box plus/minus",
+    "dbpm":             "Defensive box plus/minus",
 }
 
 # Hover tooltip text for each stat shown in the player detail section.
@@ -254,18 +256,6 @@ _STAT_HELP = {
     "stl": (
         "Steal Rate. Percentage of opponent possessions ending in a steal while on the floor. "
         "Average: 1.5-2%. Good: 2.5% or higher. Elite: 3.5% or higher."
-    ),
-    "gem_score": (
-        "Projected PORPAG multiplied by the player's obscurity score. "
-        "Rewards players projected to produce at the destination level "
-        "who are currently under the radar. No fixed ceiling; use it for relative "
-        "ranking on the board, not as an absolute grade."
-    ),
-    "obscurity": (
-        "How under-the-radar this player is. "
-        "0 = fully visible (high-major program, top recruit). "
-        "1 = completely off the radar (unranked recruit, low-major conference). "
-        "Calculated from recruiting rank and conference visibility."
     ),
 }
 
@@ -697,7 +687,7 @@ def main() -> None:
             col_cfg[col] = st.column_config.NumberColumn(label, format="%d", width="small")
         elif col == "profile":
             col_cfg[col] = st.column_config.LinkColumn(label, display_text="View", width="small")
-        elif col in ("porpag", "dporpag", "projected_porpag", "gem_score"):
+        elif col in ("porpag", "dporpag", "projected_porpag"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.2f")
         elif col in ("usg", "ortg", "ts", "ast", "to", "ftr"):
             col_cfg[col] = st.column_config.NumberColumn(label, format="%.1f")

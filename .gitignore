@@ -25,7 +25,8 @@ data/*.csv
 # App data files (board_gems, board_transfers, enriched_2023, app_config) are
 # committed so Streamlit Cloud can serve them without re-running the pipeline.
 
-# Jupyter
+# Jupyter / notebooks
+notebooks/
 .ipynb_checkpoints/
 *.ipynb
 
