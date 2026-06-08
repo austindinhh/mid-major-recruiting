@@ -371,7 +371,7 @@ def contribution_chart(player_row: pd.Series, model) -> go.Figure:
         )
     )
     fig.update_layout(
-        title="What drives this projection",
+        title="What Drives This Projection",
         xaxis_title="Contribution to projected PORPAG",
         height=360,
         margin=dict(l=0, r=10, t=40, b=20),
@@ -454,6 +454,67 @@ def career_chart(
         xaxis=dict(color="#13294B", tickangle=-20),
         yaxis=dict(title="PORPAG", color="#13294B", zeroline=True, zerolinecolor="#cccccc"),
         legend=dict(orientation="h", y=-0.25, font=dict(size=10)),
+    )
+    return fig
+
+
+def shot_profile_chart(player_row: pd.Series) -> go.Figure | None:
+    fga = pd.to_numeric(player_row.get("fga"), errors="coerce")
+    rim_a = pd.to_numeric(player_row.get("rim_a"), errors="coerce")
+    mid_a = pd.to_numeric(player_row.get("mid_a"), errors="coerce")
+    three_a = pd.to_numeric(player_row.get("three_a"), errors="coerce")
+
+    if any(pd.isna(v) for v in [fga, rim_a, mid_a, three_a]) or fga == 0:
+        return None
+
+    rim_share   = rim_a   / fga
+    mid_share   = mid_a   / fga
+    three_share = three_a / fga
+
+    rim_pct   = pd.to_numeric(player_row.get("rim_pct"),   errors="coerce")
+    mid_pct   = pd.to_numeric(player_row.get("mid_pct"),   errors="coerce")
+    three_pct = pd.to_numeric(player_row.get("three_pct"), errors="coerce")
+
+    def _pct_label(share, pct):
+        if share < 0.06:
+            return ""
+        pct_str = f"{pct:.0%}" if pd.notna(pct) else "—"
+        return f"{share:.0%} ({pct_str})"
+
+    segments = [
+        ("Rim",        rim_share,   rim_pct,   "#FF5F05"),
+        ("Mid-range",  mid_share,   mid_pct,   "#888888"),
+        ("3-pointers", three_share, three_pct, "#13294B"),
+    ]
+
+    fig = go.Figure()
+    for name, share, pct, color in segments:
+        fig.add_trace(go.Bar(
+            name=name,
+            x=[share],
+            y=[""],
+            orientation="h",
+            marker_color=color,
+            text=[_pct_label(share, pct)],
+            textposition="inside",
+            insidetextanchor="middle",
+            hovertemplate=f"{name}: {share:.0%} of shots, {pct:.0%} make rate<extra></extra>"
+                          if pd.notna(pct) else f"{name}: {share:.0%} of shots<extra></extra>",
+        ))
+
+    fig.update_layout(
+        title="Shot Distribution (share/make%)",
+        barmode="stack",
+        height=130,
+        margin=dict(l=0, r=0, t=36, b=0),
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        font=dict(size=11, color="#13294B"),
+        title_font=dict(color="#13294B"),
+        xaxis=dict(visible=False, range=[0, 1]),
+        yaxis=dict(visible=False),
+        legend=dict(orientation="h", y=-0.15, font=dict(size=10)),
+        showlegend=True,
     )
     return fig
 
@@ -736,7 +797,7 @@ def main() -> None:
                 help=_STAT_HELP["projected_porpag"],
             )
 
-        st.markdown("**Offensive profile**")
+        st.markdown("**Offensive Profile**")
         oc1, oc2, oc3 = st.columns(3)
         with oc1:
             st.metric("USG%", f"{row['usg']:.1f}", help=_STAT_HELP["usg"])
@@ -748,7 +809,7 @@ def main() -> None:
             st.metric("FTR", f"{row['ftr']:.1f}", help=_STAT_HELP["ftr"])
             st.metric("TO%", f"{row['to']:.1f}", help=_STAT_HELP["to"])
 
-        st.markdown("**Defensive profile**")
+        st.markdown("**Defensive Profile**")
         st.metric("Def PORPAG", f"{row.get('dporpag', float('nan')):.2f}", help=_STAT_HELP["dporpag"])
         dc1, dc2 = st.columns(2)
         with dc1:
@@ -782,9 +843,8 @@ def main() -> None:
                     st.metric("Difference", f"{err:+.2f}", delta=f"{err:+.2f}")
 
     with right:
+        enriched_row = projected[projected["player"] == selected]
         try:
-            # Match to enriched row so all feature cols are present
-            enriched_row = projected[projected["player"] == selected]
             if not enriched_row.empty:
                 fig = contribution_chart(enriched_row.iloc[0], model)
                 st.plotly_chart(fig, use_container_width=True)
@@ -792,6 +852,11 @@ def main() -> None:
                 st.info("Feature contribution unavailable for this player.")
         except Exception as exc:
             st.caption(f"Contribution chart unavailable: {exc}")
+
+        if not enriched_row.empty:
+            fig_shot = shot_profile_chart(enriched_row.iloc[0])
+            if fig_shot is not None:
+                st.plotly_chart(fig_shot, use_container_width=True)
 
         if board_mode == "Hidden Gems":
             st.markdown("**Obscurity breakdown**")
@@ -817,7 +882,7 @@ def main() -> None:
             if not enriched_row.empty:
                 comps = find_comps(enriched_row.iloc[0], training_pairs, hist_preds, season)
                 if not comps.empty:
-                    st.markdown("**Similar historical transfers**")
+                    st.markdown("**Similar Historical Transfers**")
                     for _, comp in comps.iterrows():
                         season_str = _season_label(int(comp["dest_season"]))
                         pred = comp["projected_porpag"]
