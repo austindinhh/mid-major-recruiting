@@ -32,3 +32,21 @@ MODEL_STAT_MODELS_PATH = MODEL_DIR / "stat_models.pkl"
 # Actual abbreviations used in the toRvik dataset
 HIGH_MAJOR_CONFERENCES = {"ACC", "B10", "B12", "BE", "P12", "SEC"}
 MID_MAJOR_CONFERENCES  = {"A10", "Amer", "MWC", "WCC", "MAC", "CUSA", "MVC", "CAA", "Horz", "SB", "WAC"}
+
+# School renames mapped to current names. Without this, a rename looks like a
+# transfer with no real change in competition.
+TEAM_RENAMES = {
+    "IUPUI": "IU Indy",
+    "Arkansas Little Rock": "Little Rock",
+    "IPFW": "Purdue Fort Wayne",
+    "Fort Wayne": "Purdue Fort Wayne",
+    "Dixie St.": "Utah Tech",
+    "College of Charleston": "Charleston",
+    "North Carolina St.": "N.C. State",
+    "Houston Baptist": "Houston Christian",
+    "Texas A&M Commerce": "East Texas A&M",
+    "Detroit": "Detroit Mercy",
+    "Louisiana Lafayette": "Louisiana",
+    "LIU Brooklyn": "LIU",
+    "St. Francis PA": "Saint Francis",
+}

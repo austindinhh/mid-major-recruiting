@@ -23,6 +23,7 @@ from ..config import (
     PLAYER_SEASONS_PATH,
     TRANSFERS_PATH,
     TEAMS_PATH,
+    TEAM_RENAMES,
 )
 from .cache import load, save
 
@@ -101,6 +102,11 @@ _BT_PLAYER_COL_MAP = {
     # 65: FTM/FGA (non-standard, not needed) — skip
     # 66: birthdate — skip
 }
+
+
+def _normalize_teams(df: pd.DataFrame) -> pd.DataFrame:
+    df["team"] = df["team"].replace(TEAM_RENAMES)
+    return df
 
 
 def _get_bytes(url: str) -> bytes:
@@ -231,7 +237,7 @@ def fetch_player_seasons(force: bool = False) -> pd.DataFrame:
     if not force:
         cached = load(PLAYER_SEASONS_PATH)
         if cached is not None:
-            return cached
+            return _normalize_teams(cached)
 
     print("[fetch] Downloading player season stats from toRvik-data...")
     url = f"{TORVIK_DATA_BASE}/player_season/all.parquet"
@@ -257,7 +263,7 @@ def fetch_player_seasons(force: bool = False) -> pd.DataFrame:
                 print(f"  year {year}: skipped ({exc})")
                 break
 
-    df = df[df["year"] >= FIRST_SEASON].reset_index(drop=True)
+    df = _normalize_teams(df[df["year"] >= FIRST_SEASON].reset_index(drop=True))
     print(f"[fetch] {len(df):,} player-seasons loaded (years {FIRST_SEASON}-{int(df['year'].max())})")
 
     save(df, PLAYER_SEASONS_PATH)
@@ -268,7 +274,7 @@ def fetch_teams(force: bool = False) -> pd.DataFrame:
     if not force:
         cached = load(TEAMS_PATH)
         if cached is not None:
-            return cached
+            return _normalize_teams(cached)
 
     print("[fetch] Downloading team ratings from toRvik-data...")
     frames = []
@@ -292,7 +298,7 @@ def fetch_teams(force: bool = False) -> pd.DataFrame:
             except Exception as e2:
                 print(f"  year {year}: skipped ({exc}; then {e2})")
 
-    df = pd.concat(frames, ignore_index=True)
+    df = _normalize_teams(pd.concat(frames, ignore_index=True))
     print(f"[fetch] {len(df):,} team-seasons loaded")
     save(df, TEAMS_PATH)
     return df
