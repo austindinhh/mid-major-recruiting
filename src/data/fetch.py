@@ -338,6 +338,13 @@ def fetch_transfers(force: bool = False) -> pd.DataFrame:
         .drop_duplicates(subset=["id", "season"])
         .reset_index(drop=True)
     )
+    # Two seasons at the origin both pair with the same destination season;
+    # keep only the most recent so multi-year stays aren't double-weighted.
+    pairs = (
+        pairs.sort_values("season")
+        .drop_duplicates(subset=["id", "dest_season"], keep="last")
+        .reset_index(drop=True)
+    )
 
     print(f"[fetch] {len(pairs):,} transfer pairs derived")
     save(pairs, TRANSFERS_PATH)
