@@ -161,7 +161,6 @@ FEATURE_LABELS = {
     "ortg":             "Offensive rating",
     "ts":               "True shooting percentage",
     "ast":              "Assist rate",
-    "team_ov_sos":      "Strength of schedule",
     "oreb_rate":        "Offensive rebounding rate",
     "dporpag":          "Defensive production (DPRPG)",
     "blk":              "Block rate",

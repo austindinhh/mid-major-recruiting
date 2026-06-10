@@ -32,7 +32,7 @@ FEATURE_COLS = [
     # Recruit visibility proxy (higher = less hidden)
     "rec",
     # Team-level competition context
-    "team_barthag", "team_adj_o", "team_adj_d", "team_ov_sos",
+    "team_barthag", "team_adj_o", "team_adj_d",
     # Competition delta — the critical feature for the translation function
     "origin_level",       # mean barthag of origin conference that year
     "destination_level",  # mean barthag of destination conference that year
@@ -98,13 +98,13 @@ def build_player_features(
     # Encode position
     ps["pos_num"] = ps["pos"].map(_POS_MAP)
 
-    # Join team-level ratings (barthag, adj_o, adj_d, sos)
-    team_feats = teams[["team", "year", "barthag", "adj_o", "adj_d", "ov_cur_sos"]].rename(
+    # Join team-level ratings. SOS is left out: the 2024+ T-Rank scrape has no
+    # SOS column, so every current player would fall down the missing-value branch.
+    team_feats = teams[["team", "year", "barthag", "adj_o", "adj_d"]].rename(
         columns={
             "barthag": "team_barthag",
             "adj_o": "team_adj_o",
             "adj_d": "team_adj_d",
-            "ov_cur_sos": "team_ov_sos",
         }
     )
     ps = ps.merge(team_feats, on=["team", "year"], how="left")
