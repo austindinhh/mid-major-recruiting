@@ -100,6 +100,9 @@ def generate_boards(
 
 
 def generate_historical_predictions() -> None:
+    from sklearn.base import clone
+    from sklearn.model_selection import GroupKFold, cross_val_predict
+    from src.config import CV_N_FOLDS
     from src.features.build import FEATURE_COLS
     from src.model.train import load_lgbm
 
@@ -109,10 +112,15 @@ def generate_historical_predictions() -> None:
         return
 
     pairs = pd.read_parquet(DATA_DIR / "training_pairs.parquet")
-    sub = pairs[pairs["dest_season"] >= 2020].copy()
+    feat_cols = [c for c in FEATURE_COLS if c in pairs.columns]
 
-    feat_cols = [c for c in FEATURE_COLS if c in sub.columns]
-    sub["projected_porpag"] = lgbm.predict(sub[feat_cols])
+    # Out-of-fold predictions on the same grouped split as training CV; the final
+    # model has seen every pair, so scoring it in-sample overstates accuracy.
+    pairs["projected_porpag"] = cross_val_predict(
+        clone(lgbm), pairs[feat_cols], pairs["target"],
+        groups=pairs["id"], cv=GroupKFold(n_splits=CV_N_FOLDS),
+    )
+    sub = pairs[pairs["dest_season"] >= 2020].copy()
     sub["actual_porpag"] = sub["target"]
     sub["error"] = sub["actual_porpag"] - sub["projected_porpag"]
 
@@ -122,7 +130,10 @@ def generate_historical_predictions() -> None:
     ]].reset_index(drop=True)
 
     out.to_parquet(HIST_PREDS_PATH, index=False)
-    print(f"[board] historical_predictions: {len(out):,} rows -> {HIST_PREDS_PATH.name}")
+    print(
+        f"[board] historical_predictions (out-of-fold): {len(out):,} rows, "
+        f"MAE={out['error'].abs().mean():.3f} -> {HIST_PREDS_PATH.name}"
+    )
 
 
 def main() -> None:
