@@ -51,7 +51,7 @@ def project_players(
 def project_box_stats(players: pd.DataFrame, destination_level: float) -> pd.DataFrame:
     """
     Adds projected_ppg, projected_rpg, projected_apg, projected_spg, projected_bpg columns.
-    Uses the stat translation Ridge models trained alongside the main LightGBM.
+    Uses the LightGBM stat translation models trained alongside the main model.
     """
     stat_models = load_stat_models()
     if stat_models is None:

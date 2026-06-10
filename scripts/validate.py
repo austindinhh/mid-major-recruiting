@@ -118,6 +118,13 @@ def validate_models() -> bool:
     )
     ok &= _check(f"LightGBM MAE < 0.95 (got {lgbm_mae:.3f})", lgbm_mae < 0.95)
 
+    for stat, s in scores.get("stat_models", {}).items():
+        stat_mae, stat_naive = s["lgbm"]["mae"], s["naive"]["mae"]
+        ok &= _check(
+            f"{stat} model beats naive (cv={stat_mae:.3f} < naive={stat_naive:.3f})",
+            stat_mae < stat_naive,
+        )
+
     print(f"\n  Naive MAE={naive_mae:.3f} | Ridge MAE={ridge_mae:.3f} | LightGBM MAE={lgbm_mae:.3f}")
     return ok
 

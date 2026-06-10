@@ -124,19 +124,21 @@ def load_lgbm() -> lgb.LGBMRegressor | None:
 
 # Box stats to translate across competition levels (scoring, rebounding, playmaking, defense)
 _BOX_STATS = ["ppg", "rpg", "apg", "spg", "bpg"]
-# Context features shared across all per-stat Ridge models
+# Context features shared across all per-stat models
 _STAT_CONTEXT_FEATS = ["origin_level", "destination_level", "usg", "porpag", "exp_num", "inches", "pos_num"]
 
 
-def train_stat_models(pairs: pd.DataFrame) -> dict:
+def train_stat_models(pairs: pd.DataFrame) -> tuple[dict, dict]:
     """
     Trains one LightGBM model per box stat (ppg, rpg, apg, spg, bpg) to translate
     a player's origin stats to what they'd produce at the destination competition level.
-    LightGBM handles NaN natively and learns the non-linear relationship between
-    origin production level and competition-level haircut (elite scorers drop less).
-    Returns a dict keyed by stat name: {"model": LGBMRegressor, "feature_cols": [...]}.
+    Each model is scored with the same grouped CV as the PRPG model and compared
+    against a naive "stat stays flat" baseline.
+    Returns (models, scores): models keyed by stat name as
+    {"model": LGBMRegressor, "feature_cols": [...]}, scores keyed by stat name as
+    {"naive": {...}, "lgbm": {...}}.
     """
-    models = {}
+    models, scores = {}, {}
     for stat in _BOX_STATS:
         dest_col = f"dest_{stat}"
         if dest_col not in pairs.columns or stat not in pairs.columns:
@@ -163,11 +165,21 @@ def train_stat_models(pairs: pd.DataFrame) -> dict:
             n_jobs=1,
             verbose=-1,
         )
+        groups = pairs.loc[sub.index, "id"]
+        cv = _cv_scores(model, X, y, groups)
+        flat = sub[stat].dropna()
+        naive = {
+            "mae": float(mean_absolute_error(y.loc[flat.index], flat)),
+            "rmse": float(root_mean_squared_error(y.loc[flat.index], flat)),
+        }
+        print(
+            f"[model] Stat model {stat:<5s}: CV MAE={cv['mae']:.3f}+/-{cv['mae_std']:.3f}  "
+            f"naive MAE={naive['mae']:.3f}  n={len(sub):,}"
+        )
         model.fit(X, y)
-        train_mae = float(mean_absolute_error(y, model.predict(X)))
-        print(f"[model] Stat model {stat:<5s}: train MAE={train_mae:.3f}  n={len(sub):,}")
         models[stat] = {"model": model, "feature_cols": feat_cols}
-    return models
+        scores[stat] = {"naive": naive, "lgbm": cv}
+    return models, scores
 
 
 def save_stat_models(models: dict) -> None:

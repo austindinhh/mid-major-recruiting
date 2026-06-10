@@ -56,16 +56,17 @@ def main() -> None:
     print("\n=== SHAP feature importance ===")
     shap_importance(lgbm, X)
 
+    print("\n=== Step 4: Train box stat translation models ===")
+    stat_models, stat_scores = train_stat_models(pairs)
+    save_stat_models(stat_models)
+
     all_scores = {
         "naive": naive_scores,
         "ridge": ridge_scores,
         "lgbm": lgbm_scores,
+        "stat_models": stat_scores,
     }
     save_models(ridge, lgbm, all_scores)
-
-    print("\n=== Step 4: Train box stat translation models ===")
-    stat_models = train_stat_models(pairs)
-    save_stat_models(stat_models)
     print("\nDone.")
 
 
