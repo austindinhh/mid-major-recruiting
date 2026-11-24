@@ -82,7 +82,8 @@ export function PlayerPage() {
   const zonesSection = (
             <section aria-labelledby="zones">
               <SectionHead id="zones" title="Shot Zones">
-                <p className="def-p">The bar shows where his shots come from. The court shows his FG% from each zone against the D1 average for {posLabel} this season, in percentage points. Blue means 2 or more points better than that average, orange 2 or more worse, grey within 2, and the bar uses the same colors.</p>
+                <p className="def-p">The bar shows where his shots come from. The court shows his FG% from each zone and how far it is from the D1 average for {posLabel} this season.</p>
+                <p className="def-p">A zone turns blue or orange only when that gap is bigger than luck alone would produce on his number of shots there. Smaller gaps stay grey. The bar uses the same colors.</p>
               </SectionHead>
               {zones ? (
                 <>

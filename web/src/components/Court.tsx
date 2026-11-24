@@ -9,10 +9,11 @@ const RIM = { cx: 250, cy: 52.5 };
 const THREE_PATH = "M33.5 0 V99.3 A221.5 221.5 0 0 0 466.5 99.3 V0";
 
 const ZONE_NAMES: Record<ZoneKey, string> = { rim: "At the rim", mid: "Midrange", three: "Three-pointers" };
-// Three levels only: the court labels each zone with its exact gap, so color just sorts better, near and worse.
+// Three levels only: the court labels each zone with its exact gap, so color just sorts better, too close and worse.
 type Level = "better" | "near" | "worse";
 const LEVEL_FILL: Record<Level, string> = { better: "var(--zone-better)", near: "var(--zone-near)", worse: "var(--zone-worse)" };
-const NEAR_PTS = 2;
+// A zone is colored only when his gap from the average is at least one standard error of luck on his number of shots.
+const Z_CUTOFF = 1;
 const ZONES: ZoneKey[] = ["rim", "mid", "three"];
 const SHORT_NAMES: Record<ZoneKey, string> = { rim: "Rim", mid: "Midrange", three: "Three" };
 // The compact court prints FG% and the average; the full court prints FG% and a plain verdict against the average.
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export function Court({ zones, averages, title, compact = false }: Props) {
-  const fill = (z: ZoneKey) => LEVEL_FILL[level(zoneDiff(zones[z], averages?.[z]))];
+  const fill = (z: ZoneKey) => LEVEL_FILL[zoneLevel(zones[z], averages?.[z])];
   const clip = `court${useId().replace(/[^\w-]/g, "")}`;
   const describe = (z: ZoneKey) => {
     const avg = averages?.[z]?.pct;
@@ -74,11 +75,18 @@ function zoneDiff(zone: Zone, avg: ZoneAverage | undefined): number | null {
   return Number((zone.pct * 100).toFixed(1)) - Number((avg.pct * 100).toFixed(1));
 }
 
-const level = (d: number | null): Level => (d == null || Math.abs(d) < NEAR_PTS ? "near" : d > 0 ? "better" : "worse");
+// One-sample test for a proportion: if his true FG% were the average p0, luck on n shots swings it by
+// sqrt(p0 (1 - p0) / n). The zone is colored when the gap is at least Z_CUTOFF of those swings.
+function zoneLevel(zone: Zone, avg: ZoneAverage | undefined): Level {
+  const p0 = avg?.pct;
+  if (zone.pct == null || p0 == null || !zone.att || p0 <= 0 || p0 >= 1) return "near";
+  const z = (zone.pct - p0) / Math.sqrt((p0 * (1 - p0)) / zone.att);
+  return Math.abs(z) < Z_CUTOFF ? "near" : z > 0 ? "better" : "worse";
+}
 
 function verdict(d: number | null): string {
   if (d == null) return "";
-  if (Math.abs(d) < NEAR_PTS) return "Near avg";
+  if (Math.abs(d) < 0.5) return "At avg";
   return `${Math.abs(d).toFixed(1)} ${d > 0 ? "above" : "below"} avg`;
 }
 
@@ -88,7 +96,7 @@ export function ShotMix({ zones, averages }: { zones: Record<ZoneKey, Zone>; ave
   return (
     <figure className={styles.shotMix} aria-label={`Shot mix: ${ZONES.map((z) => `${SHORT_NAMES[z]} ${Math.round(zones[z].share * 100)}%, ${zones[z].att} shots`).join("; ")}`}>
       {ZONES.map((z) => (
-        <div key={z} className={styles.part} style={{ flexBasis: `${zones[z].share * 100}%`, background: LEVEL_FILL[level(zoneDiff(zones[z], averages?.[z]))] }} aria-hidden="true">
+        <div key={z} className={styles.part} style={{ flexBasis: `${zones[z].share * 100}%`, background: LEVEL_FILL[zoneLevel(zones[z], averages?.[z])] }} aria-hidden="true">
           <span className={styles.partText}>
             <b><span className={styles.partName}>{z === "mid" ? "Mid" : SHORT_NAMES[z]} </span>{Math.round(zones[z].share * 100)}%</b>
             <span className={styles.partAtt}>{zones[z].att} shots</span>
@@ -103,7 +111,7 @@ export function CourtKey({ group }: { group: string }) {
   return (
     <p className={styles.courtKey}>
       <span><i style={{ background: LEVEL_FILL.better }} />Better than D1 {group}</span>
-      <span><i style={{ background: LEVEL_FILL.near }} />Within {NEAR_PTS} pts</span>
+      <span><i style={{ background: LEVEL_FILL.near }} />Too close to call</span>
       <span><i style={{ background: LEVEL_FILL.worse }} />Worse</span>
     </p>
   );

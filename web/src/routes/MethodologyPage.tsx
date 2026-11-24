@@ -177,8 +177,12 @@ export function MethodologyPage() {
           players at his position that season.
         </p>
         <p>
-          A gap of 2 percentage points or less counts as average, so small differences from a handful of shots don't
-          color a zone.
+          Even an exactly average shooter won't hit the average on a small number of shots. On 25 midrange shots, luck
+          alone moves his FG% by about 10 points; on 200 shots, by about 3.5.
+        </p>
+        <p>
+          So a zone turns blue or orange only when his gap is bigger than that luck range for his number of shots. Smaller
+          gaps stay grey, and the court still prints the exact gap.
         </p>
       </Section>
 
@@ -221,10 +225,7 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
       </div>
       <div className={styles.math} aria-hidden="true">
         <span className={styles.lhs}>Difference score =</span>
-        <span className={styles.root}>
-          <svg className={styles.radical} viewBox="0 0 20 100" preserveAspectRatio="none">
-            <path d="M0 62 L5 56 L11 100 L20 0" vectorEffect="non-scaling-stroke" />
-          </svg>
+        <Root>
           <ol>
             {sorted.map((f, i) => (
               <li key={f.label}>
@@ -234,7 +235,7 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
               </li>
             ))}
           </ol>
-        </span>
+        </Root>
       </div>
     </figure>
   );
@@ -242,17 +243,38 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
 
 function ZoneRule() {
   return (
-    <figure className={styles.formula} aria-label="Zone gap equals his FG% minus the D1 average FG% for his position. 2 or more points above is better, within 2 is average, 2 or more below is worse.">
-      <figcaption>Zone color</figcaption>
+    <figure className={styles.formula} aria-label="Zone gap equals his FG% minus the D1 average FG% for his position. Luck range equals the square root of the average times one minus the average, divided by his shots in the zone. The zone is better when the gap is at least one luck range above, worse when at least one luck range below, and too close to call otherwise.">
+      <figcaption>How a zone is colored</figcaption>
       <div className={styles.math} aria-hidden="true">
-        <span className={styles.lhs}>Zone gap =</span>
-        <span>his FG% − D1 average FG% for his position</span>
+        <span className={styles.lhs}>Gap =</span>
+        <span>his FG% − average FG%</span>
+      </div>
+      <div className={styles.math} aria-hidden="true">
+        <span className={styles.lhs}>Luck range =</span>
+        <Root>
+          <span className={styles.fraction}>
+            <span>average × (1 − average)</span>
+            <span>his shots from the zone</span>
+          </span>
+        </Root>
       </div>
       <ul className={styles.zoneRules}>
-        <li><i style={{ background: "var(--zone-better)" }} />2 or more points above: better</li>
-        <li><i style={{ background: "var(--zone-near)" }} />Within 2 points: near average</li>
-        <li><i style={{ background: "var(--zone-worse)" }} />2 or more points below: worse</li>
+        <li><i style={{ background: "var(--zone-better)" }} />Gap at least one luck range above: better</li>
+        <li><i style={{ background: "var(--zone-near)" }} />Gap inside the luck range: too close to call</li>
+        <li><i style={{ background: "var(--zone-worse)" }} />Gap at least one luck range below: worse</li>
       </ul>
     </figure>
+  );
+}
+
+// A drawn square root: the check mark stretches to the height of what it covers, and the bar runs over it.
+function Root({ children }: { children: ReactNode }) {
+  return (
+    <span className={styles.root}>
+      <svg className={styles.radical} viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 62 L5 56 L11 100 L20 0" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className={styles.radicand}>{children}</span>
+    </span>
   );
 }

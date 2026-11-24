@@ -59,7 +59,11 @@
   font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Times New Roman", serif; font-size: 1.1rem;
 }
 .lhs { white-space: nowrap; }
-.math ol { list-style: none; margin: 0; padding: var(--s-1) var(--s-2) 0 var(--s-1); border-top: 2px solid var(--ink); }
+.radicand { padding: var(--s-1) var(--s-2) 0 var(--s-1); border-top: 2px solid var(--ink); }
+.math ol { list-style: none; margin: 0; padding: 0; }
+/* A stacked fraction: numerator over a rule over denominator. */
+.fraction { display: inline-flex; flex-direction: column; align-items: center; }
+.fraction > span + span { border-top: 1.5px solid var(--ink); padding-top: 2px; margin-top: 2px; }
 /* A drawn square root: the check mark stretches to the height of the terms, the bar runs over them. */
 .root { display: inline-flex; align-items: stretch; }
 .radical { width: 22px; flex: none; overflow: visible; }
