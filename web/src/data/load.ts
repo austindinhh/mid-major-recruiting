@@ -1,4 +1,4 @@
-import { PCT_STATS, type BoardRow, type PlayerFile, type SeasonsFile, type ZoneAverages } from "./types";
+import { PCT_STATS, type BoardRow, type MethodologyFile, type PlayerFile, type SeasonsFile, type ZoneAverages } from "./types";
 
 const DATA = `${import.meta.env.BASE_URL}data`;
 const cache = new Map<string, Promise<unknown>>();
@@ -41,3 +41,5 @@ export const loadPlayer = (season: number, id: number) =>
 
 export const loadZoneAverages = (season: number) =>
   getJson<ZoneAverages>(`${season}/zone_averages.json`);
+
+export const loadMethodology = () => getJson<MethodologyFile>("methodology.json");

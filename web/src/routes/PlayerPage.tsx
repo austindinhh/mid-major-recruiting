@@ -172,7 +172,7 @@ export function PlayerPage() {
         <section aria-labelledby="comps">
           <SectionHead id="comps" title="Similar Historical Transfers">
             <p className="def-p">The three past transfers to a high-major whose stats before the move were closest to his. Select a name to open his page for the season before he moved.</p>
-            <p className="def-p">Before is his PRPG in that season and Actual is his PRPG after the move. Projected is what the model predicted for the move without seeing its result. Those predictions start with 2019-20 transfers, so earlier moves show a dash.</p>
+            <p className="def-p">Before is his PRPG in that season and Actual is his PRPG after the move. Projected is what the model predicted for the move without seeing its result. The site keeps those predictions only for moves since 2019-20, so older moves show a dash.</p>
           </SectionHead>
           {player.comps.length ? (
             <table className={styles.table}>

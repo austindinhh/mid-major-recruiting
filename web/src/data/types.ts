@@ -125,3 +125,20 @@ export interface PlayerFile {
     error: number;
   } | null;
 }
+
+export interface MethodologyFile {
+  generated: string;
+  player_seasons: number;
+  players: number;
+  first_season: number;
+  last_season: number;
+  transfers: number;
+  transfers_up_to_high_major: number;
+  cv_folds: number;
+  min_games: number;
+  models: Record<"naive" | "ridge" | "lgbm", { mae: number; rmse: number }>;
+  box: Record<string, { naive_mae: number; lgbm_mae: number }>;
+  out_of_fold: { n: number; first_dest_season: number; mae: number; within_half: number; within_one: number };
+  features: { key: string; label: string }[];
+  comp_features: { label: string; weight: number }[];
+}

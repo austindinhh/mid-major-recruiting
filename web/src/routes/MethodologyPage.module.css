@@ -1,0 +1,36 @@
+/* One reading column: prose, short tables and lists, no plates. */
+.page { max-width: 46rem; }
+.page h1 { margin: 0 0 var(--s-3); font-family: var(--font-plate); font-weight: 800; font-size: var(--text-3xl); line-height: 1; letter-spacing: -0.01em; }
+.page .lede { margin: 0 0 var(--s-7); font-size: var(--text-lg); line-height: 1.45; }
+.page section { margin-bottom: var(--s-7); }
+.page h2 {
+  margin: 0 0 var(--s-4); padding-bottom: var(--s-2); border-bottom: var(--section-rule) solid var(--rule);
+  font-family: var(--font-plate); font-weight: 700; font-size: var(--text-xl); line-height: 1.2;
+}
+.page p { margin: 0 0 var(--s-4); }
+
+.table { width: 100%; margin: 0 0 var(--s-4); border-collapse: collapse; font-size: var(--text-sm); }
+.table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; }
+.table td { white-space: nowrap; }
+.table thead th { background: var(--plate-grey); color: var(--ink-muted); font-weight: 600; }
+.table th:first-child { text-align: left; }
+.table tbody th { font-weight: 600; }
+.text th, .text td { text-align: left; }
+.used { background: var(--row-alt); }
+.used td { font-weight: 600; }
+.page .note { margin-top: calc(-1 * var(--s-2)); font-size: var(--text-sm); color: var(--ink-muted); }
+
+.groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4) var(--s-6); margin: 0 0 var(--s-4); }
+.groups dt { font-weight: 600; }
+.stack { grid-template-columns: minmax(0, 1fr); }
+.groups dd { margin: 0; font-size: var(--text-sm); color: var(--ink-muted); }
+
+.list { margin: 0; padding-left: 1.25rem; }
+.list li + li { margin-top: var(--s-2); }
+
+@media (max-width: 600px) {
+  .page h1 { font-size: 2.25rem; }
+  .lede { font-size: var(--text-md); }
+  .groups { grid-template-columns: minmax(0, 1fr); }
+  .table th, .table td { padding: var(--s-2); }
+}

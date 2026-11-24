@@ -5,6 +5,7 @@ Writes the precomputed JSON the static site reads, into web/public/data/:
   {season}/board.json               one row per eligible player, board columns + percentiles
   {season}/players/{id}.json        career, shot zones, drivers, comps, projected box stats
   {season}/zone_averages.json       D1 make rate and shot share by zone and position
+  methodology.json                  counts, validation scores and feature list for the Methodology page
 
 Run: python scripts/export_site_data.py [--seasons 2025 2026]
 """
@@ -24,13 +25,15 @@ import numpy as np
 import pandas as pd
 
 from src.config import (
-    APP_CONFIG_PATH, BOARD_EXPORT_COLS, DATA_DIR, HIST_PREDS_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
+    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, COMP_WEIGHTS, CV_N_FOLDS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
+    HIST_PREDS_PATH, MODEL_SCORES_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
     PERCENTILE_COLS, PLAYER_SEASONS_PATH, PLAYER_STAT_COLS, SITE_DATA_DIR, TRAINING_PAIRS_PATH,
 )
 from src.model.scouting import (
     FEATURE_LABELS, SHOT_ZONES, comp_pool, conf_tier, contributions, find_comps, project,
     season_label, shot_zones, tier_levels, top_contributions,
 )
+from src.features.build import FEATURE_COLS
 from src.model.train import load_lgbm
 
 BOX_STATS = ["ppg", "rpg", "apg", "spg", "bpg"]
@@ -109,6 +112,37 @@ def prediction_vs_reality(row: pd.Series, career: pd.DataFrame, hist_preds: pd.D
         "season": latest["season"], "dest_season": latest["dest_season"],
         "projected_porpag": latest["projected_porpag"], "actual_porpag": latest["actual_porpag"],
         "error": latest["error"],
+    }
+
+
+def methodology(player_seasons, training_pairs, hist_preds) -> dict:
+    """Every number the Methodology page prints, read from the pipeline's own files."""
+    scores = json.loads(MODEL_SCORES_PATH.read_text(encoding="utf-8"))
+    upward = training_pairs[training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES)
+                            & ~training_pairs["from_conf"].isin(HIGH_MAJOR_CONFERENCES)]
+    miss = hist_preds["error"].abs()
+    return {
+        "generated": date.today().isoformat(),
+        "player_seasons": len(player_seasons),
+        "players": int(player_seasons["id"].nunique()),
+        "first_season": int(player_seasons["year"].min()),
+        "last_season": int(player_seasons["year"].max()),
+        "transfers": len(training_pairs),
+        "transfers_up_to_high_major": len(upward),
+        "cv_folds": CV_N_FOLDS,
+        "min_games": MIN_GAMES,
+        "models": {k: {"mae": scores[k]["mae"], "rmse": scores[k]["rmse"]} for k in ("naive", "ridge", "lgbm")},
+        "box": {stat: {"naive_mae": v["naive"]["mae"], "lgbm_mae": v["lgbm"]["mae"]}
+                for stat, v in scores["stat_models"].items()},
+        "out_of_fold": {
+            "n": len(hist_preds),
+            "first_dest_season": int(hist_preds["dest_season"].min()),
+            "mae": miss.mean(),
+            "within_half": (miss <= 0.5).mean(),
+            "within_one": (miss <= 1).mean(),
+        },
+        "features": [{"key": f, "label": FEATURE_LABELS.get(f, f)} for f in FEATURE_COLS],
+        "comp_features": [{"label": FEATURE_LABELS.get(f, f), "weight": w} for f, w in zip(COMP_FEATURES, COMP_WEIGHTS)],
     }
 
 
@@ -216,6 +250,8 @@ def main() -> None:
         export_season(s, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, SITE_DATA_DIR)
         for s in sorted(seasons)
     ]
+
+    _write(SITE_DATA_DIR / "methodology.json", methodology(player_seasons, training_pairs, hist_preds))
 
     # seasons.json goes last so a partial export never reaches the site.
     # A --seasons run keeps the entries for seasons it did not touch.
