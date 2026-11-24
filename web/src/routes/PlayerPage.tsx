@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useApp } from "../appContext";
 import { CareerChart } from "../components/CareerChart";
-import { Court, ZoneLegend } from "../components/Court";
+import { Court, ZoneLegend, ZoneTable } from "../components/Court";
 import { DriverBars } from "../components/DriverBars";
 import { DefButton, InfoButton, SectionHead } from "../components/InfoButton";
 import { loadPlayer, loadZoneAverages } from "../data/load";
@@ -83,12 +83,13 @@ export function PlayerPage() {
   const zonesSection = (
             <section aria-labelledby="zones">
               <SectionHead id="zones" title="Shot Zones">
-                <p className="def-p">Each zone shows his make rate, his share of shots and the D1 average make rate for {posLabel} this season. Zone color compares his make rate with that average.</p>
+                <p className="def-p">The court shows his FG% in each zone. Zone color compares it with the D1 average for {posLabel} this season, and Diff is the gap in percentage points. Attempts are his shots from the zone, with their share of all his shots.</p>
               </SectionHead>
               {zones ? (
                 <>
                   <Court zones={zones} averages={zoneAvg} title={`Shot zones for ${bio.player}`} />
-                  <ZoneLegend zones={zones} showShare={false} />
+                  <ZoneTable zones={zones} averages={zoneAvg} />
+                <ZoneLegend zones={zones} showShare={false} />
                 </>
               ) : <p className={styles.empty}>No shot-zone data for this season.</p>}
             </section>
@@ -147,8 +148,8 @@ export function PlayerPage() {
       <div className={styles.sections}>
         <section aria-labelledby="why">
           <SectionHead id="why" title="Why the Model Projects This">
-            <p className="def-p">Each bar is how much one factor moves his projected PRPG up or down, in PRPG points. These are the ten largest, leaving out his current PRPG, which appears on its own below.</p>
-            <p className="def-p">The model starts from the average transfer and adds every factor's effect. The row under the bars adds those pieces up to his projection.</p>
+            <p className="def-p">Each bar is how much one factor moves his projected PRPG up or down, in PRPG points. The bars are the ten largest after his current PRPG, which has its own row above them.</p>
+            <p className="def-p">Read it top to bottom: the model starts from the average transfer, adds his current PRPG and every other factor, and lands on his projection.</p>
           </SectionHead>
           <DriverBars player={player} />
         </section>
