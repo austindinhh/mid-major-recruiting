@@ -1,0 +1,97 @@
+/* Design tokens for the scouting site. Light is the default; dark is its own set of steps.
+   Fonts are registered in src/fonts.ts. */
+
+
+:root {
+  /* Brand. Solid orange appears twice only: the Block I mark and the projection plate. */
+  --illinois-navy: #13294B;
+  --illinois-orange: #FF5F05;
+
+  /* Surfaces */
+  --bg: #FFFFFF;
+  --plate-grey: #F4F6F9;
+  --line: #E6EAF0;
+  --shell: var(--illinois-navy);
+  --shell-control: #1F3B66;
+  --shell-control-border: #3A5A8C;
+  --shell-control-hover: #5577AD;
+  --shell-edge: var(--shell);
+  --name-plate: var(--illinois-navy);
+  --on-name-plate: #FFFFFF;
+  --on-name-plate-muted: #C3CEE0;
+  --strip-bg: #E8EDF5;
+  --strip-divider: #FFFFFF;
+  --row-alt: #EEF2F8;
+  --projection-plate: var(--illinois-orange);
+  --on-projection: var(--illinois-navy);
+
+  /* Text */
+  --ink: #13294B;
+  --ink-muted: #5B6676;
+  --on-shell: #FFFFFF;
+  --on-shell-muted: #C9D4E6;
+  --rule: var(--illinois-navy);
+
+  /* Data: diverging scale, cool = below average, warm = above. Solid orange is reserved for the projection plate. */
+  --div-cool-2: #6B93CE;
+  --div-cool-1: #AFC6E8;
+  --div-mid: #EEF0F3;
+  --div-warm-1: #F7C29C;
+  --div-warm-2: #F19B62;
+  --bar-pos: var(--illinois-navy);
+  --bar-neg: #7F93B5;
+  --court-line: var(--illinois-navy);
+  --court-floor: #FFFFFF;
+
+  --focus: #3D6FB6;
+
+  /* Type */
+  --font-body: "Barlow", system-ui, sans-serif;
+  --font-plate: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+  --text-2xl: 1.728rem;
+  --text-3xl: 2.75rem;
+  --text-plate: 4rem;
+
+  /* Space (4px base) */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --content-max: 1280px;
+  --section-rule: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1A2D;
+    --plate-grey: #15243B;
+    --line: #23344F;
+    --shell: #0B1730;
+    --name-plate: #1B3762;
+    --strip-bg: #15243B;
+    --strip-divider: #0E1A2D;
+    --shell-edge: #2A3D5C;
+    --row-alt: #1B2C48;
+    --ink: #E6EBF3;
+    --ink-muted: #A3B0C4;
+    --rule: #6F8BB8;
+    --div-cool-2: #3F68A8;
+    --div-cool-1: #2B4775;
+    --div-mid: #1C2739;
+    --div-warm-1: #6E3E20;
+    --div-warm-2: #A4521C;
+    --bar-pos: #C9D6EA;
+    --bar-neg: #5C7397;
+    --court-line: #8FA6CB;
+    --court-floor: #0E1A2D;
+    --focus: #8FB4EA;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1A2D; --plate-grey: #15243B; --line: #23344F; --shell: #0B1730; --name-plate: #1B3762; --strip-bg: #15243B; --strip-divider: #0E1A2D; --shell-edge: #2A3D5C; --row-alt: #1B2C48;
+  --ink: #E6EBF3; --ink-muted: #A3B0C4; --rule: #6F8BB8;
+  --div-cool-2: #3F68A8; --div-cool-1: #2B4775; --div-mid: #1C2739; --div-warm-1: #6E3E20; --div-warm-2: #A4521C;
+  --bar-pos: #C9D6EA; --bar-neg: #5C7397; --court-line: #8FA6CB; --court-floor: #0E1A2D; --focus: #8FB4EA;
+}
