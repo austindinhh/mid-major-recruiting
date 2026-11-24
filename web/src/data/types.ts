@@ -138,7 +138,14 @@ export interface MethodologyFile {
   min_games: number;
   models: Record<"naive" | "ridge" | "lgbm", { mae: number; rmse: number }>;
   box: Record<string, { naive_mae: number; lgbm_mae: number }>;
-  out_of_fold: { n: number; first_dest_season: number; mae: number; within_half: number; within_one: number };
+  out_of_fold: {
+    n: number; first_dest_season: number; mae: number; within_half: number; within_one: number;
+    thresholds: { within: number; model: number; flat: number }[];
+  };
+  example: {
+    player: string; from_team: string; from_conf: string; to_team: string; to_conf: string;
+    season: number; dest_season: number; before: number; projected: number; actual: number;
+  } | null;
   features: { key: string; label: string }[];
   comp_features: { label: string; weight: number }[];
 }

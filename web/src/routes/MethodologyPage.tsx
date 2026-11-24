@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { Mermaid } from "../components/Mermaid";
 import { loadMethodology } from "../data/load";
 import type { MethodologyFile } from "../data/types";
 import { num, seasonLabel } from "../lib/format";
+import { useMediaQuery } from "../lib/useMediaQuery";
 import styles from "./MethodologyPage.module.css";
 
-// The model's 30 inputs, grouped the way a scout would think about them. Labels come from the export.
+// The model's inputs, grouped the way a scout would think about them. Labels come from the export.
 const GROUPS: { title: string; keys: string[] }[] = [
   { title: "Production", keys: ["porpag", "dporpag", "obpm", "dbpm", "porpag_trend"] },
   { title: "Shooting", keys: ["ts", "efg", "three_pa_rate", "ft_pct", "ftr", "ortg"] },
@@ -15,24 +17,47 @@ const GROUPS: { title: string; keys: string[] }[] = [
   { title: "Team and competition", keys: ["team_barthag", "team_adj_o", "team_adj_d", "origin_level", "destination_level"] },
 ];
 
-const BOX_NAMES: Record<string, string> = { ppg: "Points", rpg: "Rebounds", apg: "Assists", spg: "Steals", bpg: "Blocks" };
-
-const PRPG_SCALE: [string, string][] = [
-  ["Below 0", "Below replacement level"],
-  ["0 to 1", "End of the bench"],
-  ["1 to 2", "Rotation player"],
-  ["2 to 3", "Starter"],
-  ["3 and up", "Star"],
+// PRPG bands, light to dark navy.
+const BANDS: { from: number; to: number; role: string }[] = [
+  { from: -1, to: 0, role: "Below replacement" },
+  { from: 0, to: 1, role: "End of bench" },
+  { from: 1, to: 2, role: "Rotation" },
+  { from: 2, to: 3, role: "Starter" },
+  { from: 3, to: 5, role: "Star" },
 ];
 
+const LIMITS: [string, string][] = [
+  ["Freshmen", "A player in his first season has no college stats to project from."],
+  ["Redshirt years", "They aren't in the data, so he may have more eligibility left than his record shows."],
+  ["The biggest jumps", "Few low-major players have moved straight to the Big Ten, so those projections are the least certain."],
+  ["Fit", "Health, coaching, system and the role he'd have on your roster aren't in the numbers."],
+];
+
+// Counts read better rounded down to a clean figure: 8,449 is "8,000+", 1,217 is "1,200+".
+function approx(n: number): string {
+  const step = n >= 5000 ? 1000 : n >= 1000 ? 100 : 10;
+  return `${(Math.floor(n / step) * step).toLocaleString()}+`;
+}
 const pct = (v: number) => `${Math.round(v * 100)}%`;
-const pct1 = (v: number) => `${(v * 100).toFixed(1)}%`;
-const count = (v: number) => v.toLocaleString();
-const weightName = (w: number) => (w === 1 ? "Count once" : w === 2 ? "Count double" : `Count ${w} times`);
+// Mermaid labels are HTML; keep team names from breaking them.
+const esc = (s: string) => s.replace(/[<>&"]/g, "");
+
+function Section({ id, title, children, visual }: { id: string; title: string; children: ReactNode; visual?: ReactNode }) {
+  return (
+    <section aria-labelledby={id} className={styles.section}>
+      <h2 id={id}>{title}</h2>
+      <div className={visual ? styles.split : undefined}>
+        <div className={styles.prose}>{children}</div>
+        {visual && <div className={styles.visual}>{visual}</div>}
+      </div>
+    </section>
+  );
+}
 
 export function MethodologyPage() {
   const [data, setData] = useState<MethodologyFile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const narrow = useMediaQuery("(max-width: 700px)");
 
   useEffect(() => {
     document.title = "How the Model Works · Scouting Board";
@@ -40,61 +65,107 @@ export function MethodologyPage() {
     return () => { document.title = "Scouting Board"; };
   }, []);
 
-  if (error) return <div className={styles.page}><h1>How the Model Works</h1><p role="alert">{error}</p></div>;
-  if (!data) return <div className={styles.page} aria-busy="true"><div className="skeleton" style={{ height: 600 }} /></div>;
+  if (error) return <><h1 className={styles.title}>How the Model Works</h1><p role="alert">{error}</p></>;
+  if (!data) return <div aria-busy="true"><div className="skeleton" style={{ height: 600 }} /></div>;
 
-  const { models, out_of_fold: oof } = data;
-  const cut = 1 - models.lgbm.mae / models.naive.mae;
+  const { models, out_of_fold: oof, example: ex } = data;
   const label = new Map(data.features.map((f) => [f.key, f.label]));
-  const byWeight = (w: number) => data.comp_features.filter((f) => f.weight === w).map((f) => f.label);
-  const weights = [...new Set(data.comp_features.map((f) => f.weight))].sort((a, b) => b - a);
+  const dir = narrow ? "TB" : "LR";
+  const ppg = data.box.ppg;
+  const one = oof.thresholds.find((t) => t.within === 1);
+
+  const howChart = `flowchart ${dir}
+  subgraph past["${approx(data.transfers)} past transfers"]
+    direction ${dir}
+    before["<b>Season before the move</b><br/>${data.features.length} stats at his old school"]
+    after["<b>Season after</b><br/>his PRPG at the new school"]
+    before -->|same player| after
+  end
+  model["<b>The model</b><br/>learns how much production<br/>changes with the jump"]
+  now["<b>Player on the board</b><br/>his latest season"]
+  proj["<b>Projected PRPG</b><br/>at a Big Ten school"]
+  past --> model
+  now --> model
+  model --> proj
+  class proj strong`;
+
+  const exampleChart = ex && `flowchart ${dir}
+  a["<b>${esc(ex.from_team)}, ${seasonLabel(ex.season)}</b><br/>${num(ex.before, 2)} PRPG"]
+  p["<b>Projected at a Big Ten school</b><br/>${num(ex.projected, 2)} PRPG"]
+  r["<b>${esc(ex.to_team)}, ${seasonLabel(ex.dest_season)}</b><br/>${num(ex.actual, 2)} PRPG"]
+  a -->|model's projection, made before he played| p
+  p -->|his real season: off by ${num(Math.abs(ex.actual - ex.projected), 2)}| r
+  class p strong`;
 
   return (
-    <article className={styles.page}>
-      <h1>How the Model Works</h1>
+    <>
+      <h1 className={styles.title}>How the Model Works</h1>
       <p className={styles.lede}>
-        The board ranks every D1 player outside the high-majors by one number: the PRPG he would be expected to
-        produce at a Big Ten school. This page covers where that number comes from and how far to trust it.
+        Every player on the board gets one number: the PRPG he would be expected to produce at a Big Ten school.
+        Here is where that number comes from and how much to lean on it.
       </p>
 
-      <section aria-labelledby="experiment">
-        <h2 id="experiment">Transfers Are the Experiment</h2>
-        <p>
-          Stats from a mid-major and stats from the Big Ten can't be compared directly, because the competition is
-          different. Transfers get around that: when a player moves, the same person is measured at two competition
-          levels, one season apart.
-        </p>
-        <p>
-          The model learns from {count(data.transfers)} transfers between D1 programs, with destination seasons from{" "}
-          {seasonLabel(data.first_season + 1)} through {seasonLabel(data.last_season)}. That includes sideways and downward moves,
-          not only the {count(data.transfers_up_to_high_major)} moves from outside the high-majors into one, so it learns
-          how production changes across every size of jump.
-        </p>
-      </section>
+      <dl className={styles.strip}>
+        <div><dt>Transfers studied</dt><dd>{approx(data.transfers)}</dd></div>
+        <div><dt>Seasons of data</dt><dd>Since {seasonLabel(data.first_season)}</dd></div>
+        <div><dt>Stats per player</dt><dd>{data.features.length}</dd></div>
+        <div><dt>Typical miss</dt><dd>±{num(models.lgbm.mae, 2)} PRPG</dd></div>
+      </dl>
 
-      <section aria-labelledby="predicts">
-        <h2 id="predicts">What It Predicts</h2>
+      <Section id="how" title="How Does It Work?" visual={
+        <Mermaid chart={howChart} label="Past transfers, each a season before and a season after the move, teach the model how production changes. A player on the board goes in, and his projected PRPG at a Big Ten school comes out." />
+      }>
         <p>
-          PRPG is BartTorvik's points over replacement per game: how many points a game a player adds on offense compared
-          with a replacement-level player. Def PRPG is the defensive version. As a rough guide:
+          A player's stats depend on who he plays against, so numbers from a weaker conference can't be read the same
+          way as Big Ten numbers, and no flat discount converts one into the other.
         </p>
-        <table className={`${styles.table} ${styles.text}`}>
-          <thead><tr><th scope="col">PRPG</th><th scope="col">Typical role</th></tr></thead>
-          <tbody>{PRPG_SCALE.map(([range, role]) => <tr key={range}><th scope="row">{range}</th><td>{role}</td></tr>)}</tbody>
-        </table>
         <p>
-          Projected PRPG is the model's estimate of his PRPG in the season after a move to a team at the average
-          high-major competition level (what the site calls a Big Ten school). Separate models project his points,
-          rebounds, assists, steals and blocks per game the same way.
+          Transfers show what actually happens. A player who moves up is the same person, so most of the change in his
+          numbers comes from the jump in competition. The model studies {approx(data.transfers)} of those moves, up, down
+          and sideways, and applies what it learned to players who haven't moved yet.
         </p>
-      </section>
+      </Section>
 
-      <section aria-labelledby="inputs">
-        <h2 id="inputs">What It Looks At</h2>
+      {ex && exampleChart && (
+        <Section id="example" title="One Real Example" visual={
+          <Mermaid chart={exampleChart} label={`${ex.player}: ${num(ex.before, 2)} PRPG at ${ex.from_team}, projected ${num(ex.projected, 2)} at a Big Ten school, ${num(ex.actual, 2)} at ${ex.to_team}.`} />
+        }>
+          <p>
+            {ex.player} produced {num(ex.before, 2)} PRPG at {ex.from_team} in {seasonLabel(ex.season)}. Before he played a game
+            at {ex.to_team}, the model projected {num(ex.projected, 2)} at a Big Ten school, about {num(ex.before - ex.projected, 1)} lower
+            because he'd face stronger teams.
+          </p>
+          <p>
+            He finished {seasonLabel(ex.dest_season)} at {num(ex.actual, 2)}. The model hadn't seen that season when it made
+            the projection.
+          </p>
+        </Section>
+      )}
+
+      <Section id="prpg" title="What Does the Number Mean?" visual={
+        <figure className={styles.scale} aria-label="PRPG scale: below 0 is below replacement, 0 to 1 end of bench, 1 to 2 rotation, 2 to 3 starter, 3 and up star">
+          <div className={styles.scaleBar}>
+            {BANDS.map((b, i) => (
+              <div key={b.role} className={styles[`band${i}`]} style={{ flexGrow: b.to - b.from }}>
+                <b>{b.role}</b>
+                <span>{b.from < 0 ? "Below 0" : b.to === 5 ? `${b.from} and up` : `${b.from} to ${b.to}`}</span>
+              </div>
+            ))}
+          </div>
+        </figure>
+      }>
         <p>
-          {data.features.length} measures from his most recent season. On each player page, "Why the Model Projects
-          This" shows which of them moved his projection and by how much.
+          PRPG is BartTorvik's points over replacement per game: how many points a game a player adds on offense over a
+          replacement-level player. Def PRPG is the same idea on defense.
         </p>
+        <p>
+          Projected PRPG is the model's estimate for his first season at a team in an average high-major conference, which
+          the site calls a Big Ten school. Separate models project his points, rebounds, assists, steals and blocks the
+          same way.
+        </p>
+      </Section>
+
+      <Section id="inputs" title="What Goes Into It?" visual={
         <dl className={styles.groups}>
           {GROUPS.map((g) => (
             <div key={g.title}>
@@ -103,89 +174,112 @@ export function MethodologyPage() {
             </div>
           ))}
         </dl>
-      </section>
+      }>
+        <p>
+          {data.features.length} stats from his latest season, from scoring and shooting to his height, class year and how
+          strong his team and conference were.
+        </p>
+        <p>
+          Each player page has a "Why the Model Projects This" section that shows which of these pushed his projection up
+          or down, and by how much.
+        </p>
+      </Section>
 
-      <section aria-labelledby="accuracy">
-        <h2 id="accuracy">How Accurate It Is</h2>
+      <Section id="accuracy" title="How Often Is It Right?" visual={<Accuracy thresholds={oof.thresholds} />}>
         <p>
-          The model was tested {data.cv_folds} times, each time trained without a fifth of the players and scored on their
-          transfers, which it had never seen. All of a player's transfers sit in the same fifth, so the model is never
-          tested on a player it learned from.
+          To test it fairly, the model was trained {data.cv_folds} times, each time with a fifth of the players held out,
+          and then projected the players it hadn't seen. The chart compares those projections with the simplest guess:
+          that a player's PRPG stays the same after he moves.
         </p>
-        <table className={styles.table}>
-          <thead><tr><th scope="col">Method</th><th scope="col">Typical miss (PRPG)</th><th scope="col">vs. no change</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">His PRPG stays the same</th><td>{num(models.naive.mae, 3)}</td><td /></tr>
-            <tr><th scope="row">Ridge regression</th><td>{num(models.ridge.mae, 3)}</td><td>{pct1(1 - models.ridge.mae / models.naive.mae)} smaller</td></tr>
-            <tr className={styles.used}><th scope="row">LightGBM (used on the board)</th><td>{num(models.lgbm.mae, 3)}</td><td>{pct1(cut)} smaller</td></tr>
-          </tbody>
-        </table>
-        <p>
-          The typical miss is the average gap between projected and actual PRPG. Assuming a player's PRPG carries over
-          unchanged misses by {num(models.naive.mae, 2)}; the board's model cuts that by {pct1(cut)}. It edges out the
-          simpler Ridge model by only {num(models.ridge.mae - models.lgbm.mae, 3)}, so nearly all of the gain comes from
-          learning from transfers, and the choice between the two models matters little.
-        </p>
-        <p>
-          A miss of {num(models.lgbm.mae, 2)} is a little under one step on the scale above, such as rotation player against starter. Across
-          the {count(oof.n)} transfers since {seasonLabel(oof.first_dest_season)}, {pct(oof.within_one)} of projections
-          landed within 1 PRPG of what the player went on to do, and {pct(oof.within_half)} within 0.5.
-        </p>
-        <table className={styles.table}>
-          <thead><tr><th scope="col">Per game</th><th scope="col">Stays the same</th><th scope="col">Model</th></tr></thead>
-          <tbody>
-            {Object.entries(data.box).map(([stat, v]) => (
-              <tr key={stat}><th scope="row">{BOX_NAMES[stat] ?? stat}</th><td>{num(v.naive_mae, 2)}</td><td>{num(v.lgbm_mae, 2)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <p className={styles.note}>Typical miss for the projected box stats, scored the same way.</p>
-      </section>
+        {one && (
+          <p>
+            The model lands within 1 PRPG of what the player actually did {pct(one.model)} of the time, against{" "}
+            {pct(one.flat)} for assuming no change. On average it misses by {num(models.lgbm.mae, 2)} PRPG, about one step
+            on the scale above. Projected points per game miss by about {num(ppg.lgbm_mae, 1)} a game.
+          </p>
+        )}
+      </Section>
 
-      <section aria-labelledby="comps">
-        <h2 id="comps">Similar Transfers and Shot Zones</h2>
+      <Section id="comps" title="Comps and Shot Zones" visual={<Formulas comp={data.comp_features} />}>
         <p>
-          "Similar Historical Transfers" are the three past moves into a high-major made by players who looked most like
-          him in the season before their move. Likeness is measured across {data.comp_features.length} stats, some weighted
-          more than others:
+          "Similar Historical Transfers" on each player page are the three past players who moved up to a high-major and
+          looked most like him the season before. The formula on the right scores how different two players are; the
+          three smallest scores are his comps.
         </p>
-        <dl className={`${styles.groups} ${styles.stack}`}>
-          {weights.map((w) => <div key={w}><dt>{weightName(w)}</dt><dd>{byWeight(w).join(", ")}</dd></div>)}
+        <p>
+          "Shot Zones" compares his FG% in each zone with the D1 average for his position that season.
+        </p>
+      </Section>
+
+      <section aria-labelledby="limits" className={styles.section}>
+        <h2 id="limits">What It Can't Tell You</h2>
+        <dl className={styles.limits}>
+          {LIMITS.map(([t, d]) => <div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}
+          <div><dt>Early-season numbers</dt><dd>A player needs {data.min_games} games in a season to reach the board.</dd></div>
         </dl>
-        <p>
-          "Projected" for a past move is the model's prediction from the test above, made without that player's transfers
-          in training. The site keeps those predictions for moves since {seasonLabel(oof.first_dest_season)}, so older
-          comparisons show a dash.
-        </p>
-        <p>
-          "Shot Zones" compares his FG% at the rim, from midrange and from three with the D1 average for his position that
-          season. Within 2 percentage points counts as average.
-        </p>
       </section>
 
-      <section aria-labelledby="limits">
-        <h2 id="limits">What It Can't See</h2>
-        <ul className={styles.list}>
-          <li>Freshmen in their first season have no college stats to project from.</li>
-          <li>Redshirt years aren't in the data, so a player may have more eligibility left than his record suggests.</li>
-          <li>The biggest jumps, from low-major to the Big Ten, have the fewest past examples, so those projections are the least certain.</li>
-          <li>Fit, health, coaching and the role he'd have on a new roster aren't modeled.</li>
-          <li>Players need {data.min_games} games in a season to make the board; early-season numbers are noisy.</li>
+      <p className={styles.source}>
+        Stats from <a href="https://barttorvik.com">BartTorvik</a>, through
+        the <a href="https://github.com/andreweatherman/toRvik-data">toRvik-data</a> archive and BartTorvik's own site:{" "}
+        {approx(data.player_seasons)} player seasons since {seasonLabel(data.first_season)}.{" "}
+        <Link to="/">Back to the board</Link>
+      </p>
+    </>
+  );
+}
+
+function Accuracy({ thresholds }: { thresholds: MethodologyFile["out_of_fold"]["thresholds"] }) {
+  return (
+    <figure className={styles.accuracy} aria-label={`Share of past transfers projected close to what the player did. ${thresholds.map((t) => `Within ${t.within} PRPG: model ${pct(t.model)}, no change ${pct(t.flat)}`).join(". ")}.`}>
+      <figcaption>Share of past transfers where the guess landed close to what the player did</figcaption>
+      <p className={styles.legend} aria-hidden="true">
+        <span><i className={styles.barStrong} />The model</span>
+        <span><i className={styles.barMuted} />Assume his PRPG stays the same</span>
+      </p>
+      {thresholds.map((t) => (
+        <div key={t.within} className={styles.group} aria-hidden="true">
+          <span className={styles.groupLabel}>Within {num(t.within, t.within % 1 ? 1 : 0)} PRPG</span>
+          <div className={styles.barRow}><i className={styles.barStrong} style={{ width: `calc(${pct(t.model)} - 3rem)` }} /><b>{pct(t.model)}</b></div>
+          <div className={styles.barRow}><i className={styles.barMuted} style={{ width: `calc(${pct(t.flat)} - 3rem)` }} /><b>{pct(t.flat)}</b></div>
+        </div>
+      ))}
+    </figure>
+  );
+}
+
+function Formulas({ comp }: { comp: MethodologyFile["comp_features"] }) {
+  const sorted = [...comp].sort((a, b) => b.weight - a.weight);
+  return (
+    <div className={styles.formulas}>
+      <figure className={styles.formula} aria-label={`Difference squared equals the sum of each stat's weight times the squared gap: ${sorted.map((f) => `${num(f.weight, f.weight % 1 ? 1 : 0)} times ${f.label}`).join(", ")}.`}>
+        <figcaption>How different is a past transfer from him?</figcaption>
+        <div className={styles.math} aria-hidden="true">
+          <span className={styles.lhs}>Difference² =</span>
+          <ol>
+            {sorted.map((f, i) => (
+              <li key={f.label}>
+                <span className={styles.op}>{i ? "+" : ""}</span>
+                <span className={styles.w}>{num(f.weight, f.weight % 1 ? 1 : 0)} ×</span>
+                <span>({f.label} gap)²</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <p className={styles.fnote}>Each gap is between him and the past player, with every stat first scaled from 0 to 1 across all past transfers.</p>
+      </figure>
+      <figure className={styles.formula} aria-label="Zone gap equals his FG% minus the D1 average FG% for his position. 2 or more points above is better, within 2 is average, 2 or more below is worse.">
+        <figcaption>Shot zone color</figcaption>
+        <div className={styles.math} aria-hidden="true">
+          <span className={styles.lhs}>Zone gap =</span>
+          <span>his FG% − D1 average FG% for his position</span>
+        </div>
+        <ul className={styles.zoneRules}>
+          <li><i style={{ background: "var(--zone-better)" }} />2 or more points above: better</li>
+          <li><i style={{ background: "var(--zone-near)" }} />Within 2 points: near average</li>
+          <li><i style={{ background: "var(--zone-worse)" }} />2 or more points below: worse</li>
         </ul>
-      </section>
-
-      <section aria-labelledby="data">
-        <h2 id="data">Data</h2>
-        <p>
-          Player and team stats come from <a href="https://barttorvik.com">BartTorvik</a>, through
-          the <a href="https://github.com/andreweatherman/toRvik-data">toRvik-data</a> archive and BartTorvik's own site:{" "}
-          {count(data.player_seasons)} player seasons from {count(data.players)} players, {seasonLabel(data.first_season)}{" "}
-          through {seasonLabel(data.last_season)}, so the newest board ranks {seasonLabel(data.last_season)} players.
-          These numbers were last exported on{" "}
-          {new Date(`${data.generated}T12:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
-        </p>
-        <p><Link to="/">Back to the board</Link></p>
-      </section>
-    </article>
+      </figure>
+    </div>
   );
 }

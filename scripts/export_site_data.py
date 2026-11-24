@@ -121,6 +121,22 @@ def methodology(player_seasons, training_pairs, hist_preds) -> dict:
     upward = training_pairs[training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES)
                             & ~training_pairs["from_conf"].isin(HIGH_MAJOR_CONFERENCES)]
     miss = hist_preds["error"].abs()
+
+    # The worked example: the latest season's best-producing mid-major player who moved to the Big Ten
+    # and whose out-of-fold projection landed within 0.3 PRPG of what he did.
+    moves = hist_preds.merge(training_pairs[["player", "season", "dest_season", "porpag"]],
+                             on=["player", "season", "dest_season"])
+    # How often each method lands close, on the same transfers: the model's out-of-fold projection,
+    # or assuming his PRPG stays what it was before the move.
+    model_miss = moves["error"].abs()
+    flat_miss = (moves["actual_porpag"] - moves["porpag"]).abs()
+    thresholds = [{"within": t, "model": (model_miss <= t).mean(), "flat": (flat_miss <= t).mean()} for t in (0.5, 1, 1.5)]
+
+    close = moves[(moves["to_conf"] == "B10") & moves["from_conf"].isin(MID_MAJOR_CONFERENCES)
+                  & (moves["error"].abs() < 0.3)]
+    close = close[close["dest_season"] == close["dest_season"].max()]
+    ex = close.sort_values("porpag", ascending=False).iloc[0] if len(close) else None
+
     return {
         "generated": date.today().isoformat(),
         "player_seasons": len(player_seasons),
@@ -140,6 +156,13 @@ def methodology(player_seasons, training_pairs, hist_preds) -> dict:
             "mae": miss.mean(),
             "within_half": (miss <= 0.5).mean(),
             "within_one": (miss <= 1).mean(),
+            "thresholds": thresholds,
+        },
+        "example": None if ex is None else {
+            "player": ex["player"], "from_team": ex["from_team"], "from_conf": ex["from_conf"],
+            "to_team": ex["to_team"], "to_conf": ex["to_conf"], "season": int(ex["season"]),
+            "dest_season": int(ex["dest_season"]), "before": ex["porpag"],
+            "projected": ex["projected_porpag"], "actual": ex["actual_porpag"],
         },
         "features": [{"key": f, "label": FEATURE_LABELS.get(f, f)} for f in FEATURE_COLS],
         "comp_features": [{"label": FEATURE_LABELS.get(f, f), "weight": w} for f, w in zip(COMP_FEATURES, COMP_WEIGHTS)],

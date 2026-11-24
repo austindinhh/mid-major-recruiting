@@ -1,0 +1,5 @@
+.diagram { margin: 0; overflow-x: auto; }
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.diagram :global(.nodeLabel b) { font-weight: 700; }
+.diagram :global(.edgeLabel) { font-size: 14px; }
+.diagram :global(.edgeLabel) p { margin: 0; }
