@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useApp } from "../appContext";
-import { CareerChart } from "../components/CareerChart";
+import { CareerLog } from "../components/CareerLog";
 import { Court, CourtKey, ShotMix } from "../components/Court";
 import { DriverBars } from "../components/DriverBars";
 import { DefButton, InfoButton, SectionHead } from "../components/InfoButton";
@@ -155,12 +155,14 @@ export function PlayerPage() {
         </section>
 
         {zones && zonesSection}
-        <section aria-labelledby="career">
-          <SectionHead id="career" title="Career">
-            <p className="def-p">His PRPG in each college season. A dashed vertical line marks a school change, and a dotted line spans a season with no games on record.</p>
-          </SectionHead>
-          <CareerChart career={player.career} name={bio.player} />
-        </section>
+        {player.career.length > 1 && (
+          <section aria-labelledby="career">
+            <SectionHead id="career" title="Career">
+              <p className="def-p">Every college season on record, oldest first, with this season shaded. A divider marks each transfer, and a season with no D1 games gets its own row. The PRPG bars share one scale.</p>
+            </SectionHead>
+            <CareerLog career={player.career} current={season} />
+          </section>
+        )}
 
         <section aria-labelledby="box">
           <SectionHead id="box" title="Projected Box Stats">
