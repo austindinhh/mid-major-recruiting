@@ -41,7 +41,7 @@ COMP_WEIGHTS  = [  2.0,      2.0,      1.0,  1.0,    1.5,     1.5,        1.0,  
 SITE_DATA_DIR = ROOT / "web" / "public" / "data"
 BOARD_EXPORT_COLS = [
     "id", "player", "pos", "team", "conf", "exp", "inches", "g", "mpg", "fga",
-    "porpag", "dporpag", "projected_porpag", "gem_score",
+    "porpag", "dporpag", "projected_porpag",
     "usg", "ortg", "ts", "ast", "to", "ftr",
 ]
 # Stats ranked within position each season; TO% is ranked so fewer turnovers scores higher.

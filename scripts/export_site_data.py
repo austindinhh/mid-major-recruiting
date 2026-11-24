@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import (
-    APP_CONFIG_PATH, BOARD_EXPORT_COLS, DATA_DIR, HIST_PREDS_PATH, LOWER_IS_BETTER, MIN_GAMES,
+    APP_CONFIG_PATH, BOARD_EXPORT_COLS, DATA_DIR, HIST_PREDS_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
     PERCENTILE_COLS, PLAYER_SEASONS_PATH, PLAYER_STAT_COLS, SITE_DATA_DIR, TRAINING_PAIRS_PATH,
 )
 from src.model.scouting import (
@@ -152,7 +152,6 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
                 "projected_porpag": row["projected_porpag"],
                 "porpag": row["porpag"],
                 "dporpag": row["dporpag"],
-                "gem_score": row["gem_score"],
                 "bias": bias.loc[idx],
                 "porpag_contribution": contribs.loc[idx].get("porpag"),
             },
@@ -215,6 +214,7 @@ def main() -> None:
         "generated": date.today().isoformat(),
         "default_season": app_config["default_season"],
         "min_games": MIN_GAMES,
+        "mid_major_conferences": sorted(MID_MAJOR_CONFERENCES),
         "seasons": [entries[k] for k in sorted(entries, reverse=True)],
     })
     total = sum(f.stat().st_size for f in SITE_DATA_DIR.rglob("*") if f.is_file())
