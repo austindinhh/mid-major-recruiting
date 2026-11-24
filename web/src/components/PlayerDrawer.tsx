@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { loadPlayer, loadZoneAverages } from "../data/load";
 import type { BoardRow, PctStat, PlayerFile, ZoneAverages } from "../data/types";
 import { className, height, num, ordinal, pctShown } from "../lib/format";
@@ -28,6 +28,7 @@ const STRIP: { key: PctStat; label: string; digits: number }[] = [
 export function PlayerDrawer({ row, season, boardSize, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const dark = useDarkMode();
+  const location = useLocation();
   // Results are tagged with the player they belong to, so a stale load never shows.
   const [loaded, setLoaded] = useState<{ key: string; player?: PlayerFile; averages?: ZoneAverages; error?: string } | null>(null);
   const key = row ? `${season}/${row.id}` : "";
@@ -114,7 +115,7 @@ export function PlayerDrawer({ row, season, boardSize, onClose }: Props) {
             {player && !player.zones && <p className={styles.empty}>No shot-zone data for this season.</p>}
           </section>
 
-          <Link className={styles.full} to={`/player/${row.id}?season=${season}`}>Open the full player page</Link>
+          <Link className={styles.full} to={`/player/${row.id}?season=${season}`} state={{ back: `/${location.search}` }}>Open the full player page</Link>
         </div>
       )}
     </dialog>

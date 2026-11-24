@@ -12,7 +12,9 @@ const ZONE_NAMES: Record<ZoneKey, string> = { rim: "At the rim", mid: "Midrange"
 const BIN_FILL: Record<PctBin, string> = {
   lo2: "var(--div-warm-2)", lo1: "var(--div-warm-1)", mid: "var(--div-mid)", hi1: "var(--div-cool-1)", hi2: "var(--div-cool-2)",
 };
+// The compact court prints two lines per zone; the full court adds share of shots, so it needs roomier spots.
 const LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 90], mid: [118, 160], three: [250, 294] };
+const FULL_LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 80], mid: [372, 150], three: [80, 262] };
 
 interface Props {
   zones: Record<ZoneKey, Zone>;
@@ -53,11 +55,12 @@ export function Court({ zones, averages, title, compact = false }: Props) {
       </g>
       <g className={styles.labels} pointerEvents="none" aria-hidden="true">
         {(["rim", "mid", "three"] as ZoneKey[]).map((z) => {
-          const [x, y] = LABEL_AT[z];
+          const [x, y] = (compact ? LABEL_AT : FULL_LABEL_AT)[z];
           const avg = averages?.[z]?.pct;
           return (
             <text key={z} x={x} y={y}>
               <tspan className={styles.rate}>{pctText(zones[z].pct)}</tspan>
+              {!compact && <tspan x={x} dy="1.2em">{Math.round(zones[z].share * 100)}% of shots</tspan>}
               {avg != null && <tspan x={x} dy="1.2em">Avg {compact ? (avg * 100).toFixed(1) : pctText(avg)}</tspan>}
             </text>
           );
@@ -67,17 +70,19 @@ export function Court({ zones, averages, title, compact = false }: Props) {
   );
 }
 
-export function ZoneLegend({ zones }: { zones: Record<ZoneKey, Zone> }) {
+// The full court prints share of shots in each zone, so it hides the share row.
+export function ZoneLegend({ zones, showShare = true }: { zones: Record<ZoneKey, Zone>; showShare?: boolean }) {
+  const titleId = useId();
   return (
     <div className={styles.caption}>
-      <dl className={styles.mix}>
+      {showShare && <dl className={styles.mix}>
         <dt>Share of shots</dt>
         {(["rim", "mid", "three"] as ZoneKey[]).map((z) => (
           <div key={z}><dt>{z === "rim" ? "Rim" : z === "mid" ? "Midrange" : "Three"}</dt><dd>{Math.round(zones[z].share * 100)}%</dd></div>
         ))}
-      </dl>
-      <p className={styles.legendTitle} id="zone-legend-title">Make rate vs D1 average, in percentage points</p>
-      <ol className={styles.legend} aria-labelledby="zone-legend-title">
+      </dl>}
+      <p className={styles.legendTitle} id={titleId}>Make rate vs D1 average, in percentage points</p>
+      <ol className={styles.legend} aria-labelledby={titleId}>
         <li><span className="bin-lo2" />6+ below</li>
         <li><span className="bin-lo1" />2 to 6 below</li>
         <li><span style={{ background: "var(--div-mid)" }} />Within 2</li>

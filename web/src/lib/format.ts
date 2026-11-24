@@ -10,7 +10,9 @@ export function num(v: number | null | undefined, digits = 1): string {
 export function signed(v: number | null | undefined, digits = 2): string {
   if (v == null || Number.isNaN(v)) return "–";
   const s = Math.abs(v).toFixed(digits);
-  return v > 0 ? `+${s}` : v < 0 ? `${MINUS}${s}` : s;
+  // Values that round to zero print without a sign.
+  if (Number(s) === 0) return s;
+  return v > 0 ? `+${s}` : `${MINUS}${s}`;
 }
 
 export function pctText(v: number | null | undefined, digits = 1): string {
@@ -37,9 +39,9 @@ export function ordinal(n: number): string {
 
 export type PctBin = "lo2" | "lo1" | "mid" | "hi1" | "hi2";
 
-// Bins use the same rounded, capped value the page prints, so color and number never disagree.
+// Bins use the same rounded, clamped (1-99) value the page prints, so color and number never disagree.
 export function pctShown(p: number | null | undefined): number | null {
-  return p == null ? null : Math.min(99, Math.round(p));
+  return p == null ? null : Math.min(99, Math.max(1, Math.round(p)));
 }
 
 // Zone make rate minus the D1 average, in percentage points, binned for the court scale.

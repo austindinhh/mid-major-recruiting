@@ -16,6 +16,17 @@ export function InfoButton({ label, children, className = "" }: { label: string;
   );
 }
 
+// A stat name that opens its definition, for strips and tables.
+export function DefButton({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <>
+      <button className="def-name" type="button" popoverTarget={id}>{label}</button>
+      <div className="def" id={id} popover="auto">{children}</div>
+    </>
+  );
+}
+
 export function SectionHead({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <div className="head">

@@ -37,6 +37,9 @@ button { font: inherit; color: inherit; }
 .info { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--ink-muted); cursor: pointer; }
 .info:hover { color: var(--ink); background: var(--plate-grey); }
 .info:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.def-name { all: unset; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.def-name:hover { color: var(--ink); }
+.def-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .def { max-width: min(22rem, calc(100vw - 32px)); margin: 0; padding: var(--s-3) var(--s-4); border: 1px solid var(--rule); background: var(--bg); color: var(--ink); font-size: var(--text-sm); }
 .def-p { margin: 0; }
 .def-p + .def-p { margin-top: var(--s-2); }

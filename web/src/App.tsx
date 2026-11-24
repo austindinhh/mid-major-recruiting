@@ -53,9 +53,9 @@ export function App() {
       <CommandPalette
         open={searching} season={season} seasonLabel={seasonLabel} onClose={() => setSearching(false)}
         onPick={(r) => {
-          // On the board, keep the current filters and just open the player.
-          if (location.pathname === "/") setParams((p) => { p.set("player", String(r.id)); return p; });
-          else navigate(`/?season=${season}&player=${r.id}`);
+          // From the board, the player page's back link returns to the same filters.
+          const back = location.pathname === "/" ? `/${location.search}` : undefined;
+          navigate(`/player/${r.id}?season=${season}`, { state: back ? { back } : null });
         }}
       />
     </>
