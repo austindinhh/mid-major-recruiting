@@ -9,7 +9,7 @@
 }
 .button:hover { background: var(--plate-grey); }
 .button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.open { background: var(--div-mid); }
+.open { background: var(--row-open); }
 .rank { color: var(--ink-muted); font-size: var(--text-sm); text-align: right; }
 .who { display: flex; flex-direction: column; min-width: 0; }
 .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

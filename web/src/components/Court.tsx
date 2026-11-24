@@ -1,6 +1,6 @@
 import { useId } from "react";
 import type { Zone, ZoneAverage, ZoneKey } from "../data/types";
-import { pctText, zoneBin, type PctBin } from "../lib/format";
+import { pctText } from "../lib/format";
 import styles from "./Court.module.css";
 
 // NCAA half court at 10 units per foot, baseline at the top. The rim zone is drawn
@@ -9,9 +9,10 @@ const RIM = { cx: 250, cy: 52.5 };
 const THREE_PATH = "M33.5 0 V99.3 A221.5 221.5 0 0 0 466.5 99.3 V0";
 
 const ZONE_NAMES: Record<ZoneKey, string> = { rim: "At the rim", mid: "Midrange", three: "Three-pointers" };
-const BIN_FILL: Record<PctBin, string> = {
-  lo2: "var(--div-warm-2)", lo1: "var(--div-warm-1)", mid: "var(--div-mid)", hi1: "var(--div-cool-1)", hi2: "var(--div-cool-2)",
-};
+// Three levels only: the court labels each zone with its exact gap, so color just sorts better, near and worse.
+type Level = "better" | "near" | "worse";
+const LEVEL_FILL: Record<Level, string> = { better: "var(--zone-better)", near: "var(--zone-near)", worse: "var(--zone-worse)" };
+const NEAR_PTS = 2;
 const ZONES: ZoneKey[] = ["rim", "mid", "three"];
 const SHORT_NAMES: Record<ZoneKey, string> = { rim: "Rim", mid: "Midrange", three: "Three" };
 // The compact court prints FG% and the average; the full court prints FG% and a plain verdict against the average.
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export function Court({ zones, averages, title, compact = false }: Props) {
-  const fill = (z: ZoneKey) => BIN_FILL[zoneBin(zoneDiff(zones[z], averages?.[z])) ?? "mid"];
+  const fill = (z: ZoneKey) => LEVEL_FILL[level(zoneDiff(zones[z], averages?.[z]))];
   const clip = `court${useId().replace(/[^\w-]/g, "")}`;
   const describe = (z: ZoneKey) => {
     const avg = averages?.[z]?.pct;
@@ -73,48 +74,43 @@ function zoneDiff(zone: Zone, avg: ZoneAverage | undefined): number | null {
   return Number((zone.pct * 100).toFixed(1)) - Number((avg.pct * 100).toFixed(1));
 }
 
-// Matches the color bins: within 2 points reads as average.
+const level = (d: number | null): Level => (d == null || Math.abs(d) < NEAR_PTS ? "near" : d > 0 ? "better" : "worse");
+
 function verdict(d: number | null): string {
   if (d == null) return "";
-  if (Math.abs(d) < 2) return "Near avg";
+  if (Math.abs(d) < NEAR_PTS) return "Near avg";
   return `${Math.abs(d).toFixed(1)} ${d > 0 ? "above" : "below"} avg`;
 }
 
-// Where his shots come from, as one bar split by share, rim to three. Labels sit under their segment;
-// narrow segments push their neighbors over rather than overlap them.
-export function ShotMix({ zones }: { zones: Record<ZoneKey, Zone> }) {
+// Where his shots come from: one bar split by share, rim to three, each part filled like its court zone.
+// Labels sit inside and drop detail as a part narrows (container queries in the CSS).
+export function ShotMix({ zones, averages }: { zones: Record<ZoneKey, Zone>; averages: Record<ZoneKey, ZoneAverage> | null }) {
   return (
     <figure className={styles.shotMix} aria-label={`Shot mix: ${ZONES.map((z) => `${SHORT_NAMES[z]} ${Math.round(zones[z].share * 100)}%, ${zones[z].att} shots`).join("; ")}`}>
-      <div className={styles.mixBar} aria-hidden="true">
-        {ZONES.map((z) => <span key={z} style={{ flexBasis: `${zones[z].share * 100}%` }} />)}
-      </div>
-      <div className={styles.mixLabels} aria-hidden="true">
-        {ZONES.map((z) => (
-          <span key={z} style={{ flexBasis: `${zones[z].share * 100}%` }}>
-            <b>{SHORT_NAMES[z]} {Math.round(zones[z].share * 100)}%</b>
-            <span>{zones[z].att} shots</span>
+      {ZONES.map((z) => (
+        <div key={z} className={styles.part} style={{ flexBasis: `${zones[z].share * 100}%`, background: LEVEL_FILL[level(zoneDiff(zones[z], averages?.[z]))] }} aria-hidden="true">
+          <span className={styles.partText}>
+            <b><span className={styles.partName}>{z === "mid" ? "Mid" : SHORT_NAMES[z]} </span>{Math.round(zones[z].share * 100)}%</b>
+            <span className={styles.partAtt}>{zones[z].att} shots</span>
           </span>
-        ))}
-      </div>
+        </div>
+      ))}
     </figure>
   );
 }
 
-// The full court labels each zone in words, so its key only needs the three meanings.
-// Better and worse each show both of their steps, so the key matches whichever one the court uses.
 export function CourtKey({ group }: { group: string }) {
   return (
     <p className={styles.courtKey}>
-      <span><i className="bin-hi1" /><i className="bin-hi2" />Better than D1 {group}</span>
-      <span><i style={{ background: "var(--div-mid)" }} />Near average</span>
-      <span><i className="bin-lo1" /><i className="bin-lo2" />Worse</span>
+      <span><i style={{ background: LEVEL_FILL.better }} />Better than D1 {group}</span>
+      <span><i style={{ background: LEVEL_FILL.near }} />Within {NEAR_PTS} pts</span>
+      <span><i style={{ background: LEVEL_FILL.worse }} />Worse</span>
     </p>
   );
 }
 
-// The drawer's caption: share of shots and the five-step scale.
-export function ZoneLegend({ zones }: { zones: Record<ZoneKey, Zone> }) {
-  const titleId = useId();
+// The drawer's caption: share of shots, then the same key as the full court.
+export function ZoneLegend({ zones, group }: { zones: Record<ZoneKey, Zone>; group: string }) {
   return (
     <div className={styles.caption}>
       <dl className={styles.mix}>
@@ -123,14 +119,7 @@ export function ZoneLegend({ zones }: { zones: Record<ZoneKey, Zone> }) {
           <div key={z}><dt>{SHORT_NAMES[z]}</dt><dd>{Math.round(zones[z].share * 100)}%</dd></div>
         ))}
       </dl>
-      <p className={styles.legendTitle} id={titleId}>FG% compared with the D1 average at his position</p>
-      <ol className={styles.legend} aria-labelledby={titleId}>
-        <li><span className="bin-lo2" />6+ pts worse</li>
-        <li><span className="bin-lo1" />2 to 6 worse</li>
-        <li><span style={{ background: "var(--div-mid)" }} />Within 2</li>
-        <li><span className="bin-hi1" />2 to 6 better</li>
-        <li><span className="bin-hi2" />6+ pts better</li>
-      </ol>
+      <CourtKey group={group} />
     </div>
   );
 }

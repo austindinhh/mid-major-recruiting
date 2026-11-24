@@ -37,19 +37,7 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
-export type PctBin = "lo2" | "lo1" | "mid" | "hi1" | "hi2";
-
 // Bins use the same rounded, clamped (1-99) value the page prints, so color and number never disagree.
 export function pctShown(p: number | null | undefined): number | null {
   return p == null ? null : Math.min(99, Math.max(1, Math.round(p)));
-}
-
-// Zone make rate minus the D1 average, in percentage points, binned for the court scale.
-export function zoneBin(diffPts: number | null): PctBin | null {
-  if (diffPts == null) return null;
-  if (diffPts <= -6) return "lo2";
-  if (diffPts <= -2) return "lo1";
-  if (diffPts < 2) return "mid";
-  if (diffPts < 6) return "hi1";
-  return "hi2";
 }

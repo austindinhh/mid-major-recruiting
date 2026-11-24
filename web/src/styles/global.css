@@ -24,13 +24,6 @@ button { font: inherit; color: inherit; }
 .page:has(.board-wide) { max-width: 1440px; }
 @media (max-width: 600px) { .page { padding: var(--s-4) var(--s-4) var(--s-7); } }
 
-/* Court and legend bins. */
-.bin-lo2 { background: var(--div-warm-2); }
-.bin-lo1 { background: var(--div-warm-1); }
-.bin-mid { background: transparent; }
-.bin-hi1 { background: var(--div-cool-1); }
-.bin-hi2 { background: var(--div-cool-2); }
-
 /* Section heading with an info button, shared by every page. */
 .head { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-4); padding-bottom: var(--s-2); border-bottom: var(--section-rule) solid var(--rule); }
 .head h2 { margin: 0; font-family: var(--font-plate); font-weight: 700; font-size: var(--text-xl); line-height: 1.2; }

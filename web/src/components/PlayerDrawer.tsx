@@ -109,7 +109,7 @@ export function PlayerDrawer({ row, season, boardSize, onClose }: Props) {
             {player && player.zones && (
               <>
                 <Court zones={player.zones} averages={averages?.[player.bio.pos ?? ""] ?? averages?.all ?? null} title={`Shot zones for ${row.player}`} compact />
-                <ZoneLegend zones={player.zones} />
+                <ZoneLegend zones={player.zones} group={row.pos ? `${row.pos}s` : "players at his position"} />
               </>
             )}
             {player && !player.zones && <p className={styles.empty}>No shot-zone data for this season.</p>}

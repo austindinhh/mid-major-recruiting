@@ -22,6 +22,7 @@
   --strip-bg: #E8EDF5;
   --strip-divider: #FFFFFF;
   --row-alt: #EEF2F8;
+  --row-open: #EEF0F3;
   --projection-plate: var(--illinois-orange);
   --on-projection: var(--illinois-navy);
 
@@ -32,12 +33,10 @@
   --on-shell-muted: #C9D4E6;
   --rule: var(--illinois-navy);
 
-  /* Data: diverging scale, cool = below average, warm = above. Solid orange is reserved for the projection plate. */
-  --div-cool-2: #6B93CE;
-  --div-cool-1: #AFC6E8;
-  --div-mid: #EEF0F3;
-  --div-warm-1: #F7C29C;
-  --div-warm-2: #F19B62;
+  /* Shot zones vs the D1 average: blue better, grey near, orange worse. Solid orange is reserved for the projection plate. */
+  --zone-better: #8AABDC;
+  --zone-near: #EEF0F3;
+  --zone-worse: #F3A46E;
   --bar-pos: var(--illinois-navy);
   --bar-neg: #7F93B5;
   --court-line: var(--illinois-navy);
@@ -79,14 +78,13 @@
     --strip-divider: #0E1A2D;
     --shell-edge: #2A3D5C;
     --row-alt: #1B2C48;
+    --row-open: #1C2739;
     --ink: #E6EBF3;
     --ink-muted: #A3B0C4;
     --rule: #6F8BB8;
-    --div-cool-2: #3F68A8;
-    --div-cool-1: #2B4775;
-    --div-mid: #1C2739;
-    --div-warm-1: #6E3E20;
-    --div-warm-2: #A4521C;
+    --zone-better: #3F68A8;
+    --zone-near: #1C2739;
+    --zone-worse: #A4521C;
     --bar-pos: #C9D6EA;
     --bar-neg: #5C7397;
     --court-line: #8FA6CB;
@@ -99,8 +97,8 @@
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1A2D; --plate-grey: #15243B; --line: #23344F; --shell: #0B1730; --name-plate: #1B3762; --strip-bg: #15243B; --strip-divider: #0E1A2D; --shell-edge: #2A3D5C; --row-alt: #1B2C48;
+  --bg: #0E1A2D; --plate-grey: #15243B; --line: #23344F; --shell: #0B1730; --name-plate: #1B3762; --strip-bg: #15243B; --strip-divider: #0E1A2D; --shell-edge: #2A3D5C; --row-alt: #1B2C48; --row-open: #1C2739;
   --ink: #E6EBF3; --ink-muted: #A3B0C4; --rule: #6F8BB8;
-  --div-cool-2: #3F68A8; --div-cool-1: #2B4775; --div-mid: #1C2739; --div-warm-1: #6E3E20; --div-warm-2: #A4521C;
+  --zone-better: #3F68A8; --zone-near: #1C2739; --zone-worse: #A4521C;
   --bar-pos: #C9D6EA; --bar-neg: #5C7397; --court-line: #8FA6CB; --court-floor: #0E1A2D; --focus: #8FB4EA; --control: #C9D6EA; --on-control: #0E1A2D; --control-track: #3A4D6B; --backdrop: rgb(0 0 0 / 0.6);
 }
