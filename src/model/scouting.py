@@ -158,8 +158,8 @@ def find_comps(
     else:
         nearest["projected_porpag"] = np.nan
 
-    return nearest[["player", "from_team", "from_conf", "to_team", "to_conf",
-                    "dest_season", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
+    return nearest[["id", "player", "from_team", "from_conf", "to_team", "to_conf", "season",
+                    "dest_season", "porpag", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
 
 
 def shot_zones(player_row: pd.Series) -> dict | None:

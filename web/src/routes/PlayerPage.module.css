@@ -36,7 +36,8 @@
 .table th:first-child { text-align: left; }
 .table tbody th { font-weight: 600; }
 .strong { font-weight: 600; }
-.compName { display: block; }
+.compName { display: block; width: fit-content; }
+.mutedCell { color: var(--ink-muted); }
 .move { display: block; font-weight: 400; color: var(--ink-muted); }
 
 .pvrMove { margin: 0 0 var(--s-3); font-size: var(--text-sm); }

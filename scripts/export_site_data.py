@@ -112,7 +112,7 @@ def prediction_vs_reality(row: pd.Series, career: pd.DataFrame, hist_preds: pd.D
     }
 
 
-def export_season(season, dest_level, model, player_seasons, training_pairs, hist_preds, out_dir) -> dict:
+def export_season(season, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, out_dir) -> dict:
     players = pd.read_parquet(DATA_DIR / f"players_{season}.parquet")
     tiers = tier_levels(players, dest_level)
     projected = project(players, tiers["High-Major"], model)
@@ -168,7 +168,15 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
                 for _, r in career.iterrows()
             ],
             "comps": [
-                {**c, "season_label": season_label(int(c["dest_season"]))}
+                {
+                    **{k: c[k] for k in ["player", "from_team", "from_conf", "to_team", "to_conf", "dest_season",
+                                         "projected_porpag", "actual_porpag"]},
+                    "before_porpag": c["porpag"],
+                    "season_label": season_label(int(c["dest_season"])),
+                    # Comps link to their pre-transfer season's player page when that season has one.
+                    "link": {"id": int(c["id"]), "season": int(c["season"])}
+                    if int(c["id"]) in on_board.get(int(c["season"]), ()) else None,
+                }
                 for c in comps.to_dict("records")
             ],
             "prediction_vs_reality": prediction_vs_reality(row, career, hist_preds),
@@ -197,9 +205,15 @@ def main() -> None:
     training_pairs = pd.read_parquet(TRAINING_PAIRS_PATH)
     hist_preds = pd.read_parquet(HIST_PREDS_PATH)
 
+    # Which players get a page in each season, so comps only link to pages that exist.
+    on_board = {}
+    for s in app_config["available_seasons"]:
+        p = pd.read_parquet(DATA_DIR / f"players_{s}.parquet", columns=["id", "g"])
+        on_board[s] = set(p.loc[p["g"] >= MIN_GAMES, "id"].astype(int))
+
     SITE_DATA_DIR.mkdir(parents=True, exist_ok=True)
     summaries = [
-        export_season(s, dest_level, model, player_seasons, training_pairs, hist_preds, SITE_DATA_DIR)
+        export_season(s, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, SITE_DATA_DIR)
         for s in sorted(seasons)
     ]
 

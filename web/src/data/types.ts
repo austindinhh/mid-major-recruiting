@@ -109,7 +109,9 @@ export interface PlayerFile {
     dest_season: number;
     projected_porpag: number | null;
     actual_porpag: number;
+    before_porpag: number | null;
     season_label: string;
+    link: { id: number; season: number } | null;
   }[];
   prediction_vs_reality: {
     from_team: string;

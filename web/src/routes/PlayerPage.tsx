@@ -158,7 +158,7 @@ export function PlayerPage() {
         {player.career.length > 1 && (
           <section aria-labelledby="career">
             <SectionHead id="career" title="Career">
-              <p className="def-p">Every college season on record, oldest first, with this season shaded. A divider marks each transfer, and a season with no D1 games gets its own row. The PRPG bars share one scale.</p>
+              <p className="def-p">Every college season on record, oldest first, with this season shaded. A divider marks each transfer, and a season with no D1 games gets its own row. +/− is the change in PRPG from his previous season.</p>
             </SectionHead>
             <CareerLog career={player.career} current={season} />
           </section>
@@ -189,20 +189,23 @@ export function PlayerPage() {
 
         <section aria-labelledby="comps">
           <SectionHead id="comps" title="Similar Historical Transfers">
-            <p className="def-p">The three past transfers to a high-major whose stats before the move were closest to his.</p>
-            <p className="def-p">Projected is what the model predicted for that move without seeing its result. It is blank when the model has no such prediction for that season.</p>
+            <p className="def-p">The three past transfers to a high-major whose stats before the move were closest to his. Select a name to open his page for the season before he moved.</p>
+            <p className="def-p">Before is his PRPG in that season and Actual is his PRPG after the move. Projected is what the model predicted for the move without seeing its result. Those predictions start with 2019-20 transfers, so earlier moves show a dash.</p>
           </SectionHead>
           {player.comps.length ? (
             <table className={styles.table}>
-              <thead><tr><th scope="col">Player</th><th scope="col">Projected</th><th scope="col">Actual</th></tr></thead>
+              <thead><tr><th scope="col">Player</th><th scope="col">Before</th><th scope="col">Projected</th><th scope="col">Actual</th></tr></thead>
               <tbody>
                 {player.comps.map((c) => (
                   <tr key={`${c.player}-${c.dest_season}`}>
                     <th scope="row">
-                      <span className={styles.compName}>{c.player}</span>
+                      {c.link
+                        ? <Link className={styles.compName} to={`/player/${c.link.id}?season=${c.link.season}`}>{c.player}</Link>
+                        : <span className={styles.compName}>{c.player}</span>}
                       <span className={styles.move}>{c.from_team} to {c.to_team}, {c.season_label}</span>
                     </th>
-                    <td>{num(c.projected_porpag, 2)}</td>
+                    <td>{num(c.before_porpag, 2)}</td>
+                    <td className={c.projected_porpag == null ? styles.mutedCell : undefined}>{num(c.projected_porpag, 2)}</td>
                     <td className={styles.strong}>{num(c.actual_porpag, 2)}</td>
                   </tr>
                 ))}
