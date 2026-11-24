@@ -111,12 +111,12 @@ export function PlayerPage() {
         </div>
         <div className={styles.team}>
           <span className={styles.teamName}>{bio.team}</span>
-          <span className={styles.conf}>{confName(bio.conf)} · {seasonLabel(season)}</span>
+          <span className={styles.conf}>{confName(bio.conf)}</span>
         </div>
         <div className={styles.proj}>
           <span className={styles.projValue}>{num(projection.projected_porpag, 2)}</span>
           <span className={styles.projLabel}>Projected PRPG at a Big Ten school</span>
-          <span>Ranked {player.rank.toLocaleString()} of {entry?.players.toLocaleString() ?? "–"} on the {entry?.label} board</span>
+          <span>Ranked {player.rank.toLocaleString()}/{entry?.players.toLocaleString() ?? "–"} on the board</span>
         </div>
       </section>
 
