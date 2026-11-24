@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import {
   createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable,
-  type ColumnDef, type SortingState,
+  type ColumnDef, type OnChangeFn, type SortingState,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { BoardRow, PctStat } from "../data/types";
@@ -62,9 +62,9 @@ function useColumns() {
     return [
       col.accessor("rank", { header: "#", sortDescFirst: false, meta: { width: 52, align: "right", sticky: 0 } satisfies Meta,
         cell: (c) => <span className={styles.rank}>{c.getValue()}</span> }),
-      col.accessor("player", { header: "Player", sortDescFirst: false, meta: { width: 176, align: "left", sticky: 52 } satisfies Meta,
+      col.accessor("player", { header: "Player", sortDescFirst: false, meta: { width: 196, align: "left", sticky: 52 } satisfies Meta,
         cell: (c) => <span className={styles.name} title={c.getValue()}>{c.getValue()}</span> }),
-      col.accessor("team", { header: "Team", sortDescFirst: false, meta: { width: 168, align: "left" } satisfies Meta,
+      col.accessor("team", { header: "Team", sortDescFirst: false, meta: { width: 180, align: "left" } satisfies Meta,
         cell: (c) => <span title={c.getValue()}>{c.getValue()}</span> }),
       col.accessor("conf", { header: "Conf", sortDescFirst: false, meta: { width: 48, align: "left" } satisfies Meta }),
       col.accessor((r) => r.exp ?? undefined, { id: "exp", header: "Class", sortUndefined: "last", meta: { width: 48, align: "left" } satisfies Meta,
@@ -112,16 +112,17 @@ interface Props {
   rows: BoardRow[];
   openId: number | null;
   onOpen: (row: BoardRow) => void;
+  sorting: SortingState;
+  onSortingChange: OnChangeFn<SortingState>;
 }
 
-export function BoardTable({ rows, openId, onOpen }: Props) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "projected_porpag", desc: true }]);
+export function BoardTable({ rows, openId, onOpen, sorting, onSortingChange }: Props) {
   const columns = useColumns();
   const table = useReactTable({
     data: rows,
     columns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getRowId: (r) => String(r.id),

@@ -8,3 +8,9 @@
   padding: var(--s-2) var(--s-4); border: 0; cursor: pointer; font-weight: 600;
   background: var(--name-plate); color: var(--on-name-plate);
 }
+.filters { margin-bottom: var(--s-4); }
+.empty { padding: var(--s-6) var(--s-4); border-top: var(--section-rule) solid var(--rule); }
+.empty p { margin: 0 0 var(--s-3); }
+.inlineButton { all: unset; cursor: pointer; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.inlineButton:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.clear { height: 34px; padding: 0 var(--s-4); border: 0; cursor: pointer; font: inherit; font-weight: 600; background: var(--name-plate); color: var(--on-name-plate); }

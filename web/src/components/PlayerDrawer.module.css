@@ -5,7 +5,7 @@
   background: var(--bg); color: var(--ink);
   border-left: var(--section-rule) solid var(--rule);
 }
-.drawer::backdrop { background: rgb(11 28 54 / 0.28); }
+.drawer::backdrop { background: var(--backdrop); }
 @media (prefers-reduced-motion: no-preference) {
   .drawer[open] { animation: slide 200ms cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes slide { from { transform: translateX(24px); opacity: 0; } }

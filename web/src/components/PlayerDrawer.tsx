@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { loadPlayer, loadZoneAverages } from "../data/load";
 import type { BoardRow, PctStat, PlayerFile, ZoneAverages } from "../data/types";
 import { className, height, num, ordinal, pctShown } from "../lib/format";
+import { confName } from "../lib/conferences";
 import { heatStyle } from "../lib/heat";
 import { useDarkMode } from "../lib/useDarkMode";
 import { Court, ZoneLegend } from "./Court";
@@ -79,7 +80,7 @@ export function PlayerDrawer({ row, season, boardSize, onClose }: Props) {
                 <div><dt>Games</dt><dd>{row.g}</dd></div>
               </dl>
             </div>
-            <div className={styles.team}><span>{row.team}</span> <span className={styles.conf}>{row.conf}</span></div>
+            <div className={styles.team}><span>{row.team}</span> <span className={styles.conf}>{confName(row.conf)}</span></div>
             <div className={styles.proj}>
               <span className={styles.projValue}>{num(row.projected_porpag, 2)}</span>
               <span className={styles.projLabel}>Projected PRPG at a Big Ten school</span>

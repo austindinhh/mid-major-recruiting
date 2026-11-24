@@ -11,6 +11,7 @@ export interface SeasonsFile {
   generated: string;
   default_season: number;
   min_games: number;
+  mid_major_conferences?: string[];
   seasons: SeasonEntry[];
 }
 
@@ -35,7 +36,6 @@ export interface BoardRow {
   porpag: number;
   dporpag: number | null;
   projected_porpag: number;
-  gem_score: number | null;
   usg: number | null;
   ortg: number | null;
   ts: number | null;
@@ -77,7 +77,6 @@ export interface PlayerFile {
     projected_porpag: number;
     porpag: number;
     dporpag: number | null;
-    gem_score: number | null;
     bias: number;
     porpag_contribution: number | null;
   };

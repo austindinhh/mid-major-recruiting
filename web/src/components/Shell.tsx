@@ -1,14 +1,9 @@
 import { NavLink, Link } from "react-router-dom";
-import type { SeasonEntry } from "../data/types";
 import styles from "./Shell.module.css";
 
-interface Props {
-  seasons: SeasonEntry[];
-  season: number | null;
-  onSeasonChange: (season: number) => void;
-}
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
-export function Shell({ seasons, season, onSeasonChange }: Props) {
+export function Shell({ onSearch }: { onSearch: () => void }) {
   return (
     <header className={styles.shell}>
       <div className={styles.inner}>
@@ -20,16 +15,11 @@ export function Shell({ seasons, season, onSeasonChange }: Props) {
           <NavLink to="/" end>Board</NavLink>
           <NavLink to="/methodology">Methodology</NavLink>
         </nav>
-        {season != null && seasons.length > 0 && (
-          <label className={styles.season}>
-            <span className="visually-hidden">Season</span>
-            <select value={season} onChange={(e) => onSeasonChange(Number(e.target.value))}>
-              {seasons.map((s) => (
-                <option key={s.season} value={s.season}>{s.label}</option>
-              ))}
-            </select>
-          </label>
-        )}
+        <button type="button" className={styles.search} onClick={onSearch} aria-keyshortcuts={isMac ? "Meta+K" : "Control+K"}>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          <span>Search players</span>
+          <kbd>{isMac ? "⌘K" : "Ctrl K"}</kbd>
+        </button>
       </div>
     </header>
   );

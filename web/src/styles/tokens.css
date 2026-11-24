@@ -44,6 +44,11 @@
   --court-floor: #FFFFFF;
 
   --focus: #3D6FB6;
+  /* Interactive control states: slider fill and handles, pressed toggles, checkboxes. */
+  --control: #13294B;
+  --on-control: #FFFFFF;
+  --control-track: #D3DAE5;
+  --backdrop: rgb(11 28 54 / 0.35);
 
   /* Type */
   --font-body: "Barlow", system-ui, sans-serif;
@@ -87,11 +92,15 @@
     --court-line: #8FA6CB;
     --court-floor: #0E1A2D;
     --focus: #8FB4EA;
+    --control: #C9D6EA;
+    --on-control: #0E1A2D;
+    --control-track: #3A4D6B;
+    --backdrop: rgb(0 0 0 / 0.6);
   }
 }
 :root[data-theme="dark"] {
   --bg: #0E1A2D; --plate-grey: #15243B; --line: #23344F; --shell: #0B1730; --name-plate: #1B3762; --strip-bg: #15243B; --strip-divider: #0E1A2D; --shell-edge: #2A3D5C; --row-alt: #1B2C48;
   --ink: #E6EBF3; --ink-muted: #A3B0C4; --rule: #6F8BB8;
   --div-cool-2: #3F68A8; --div-cool-1: #2B4775; --div-mid: #1C2739; --div-warm-1: #6E3E20; --div-warm-2: #A4521C;
-  --bar-pos: #C9D6EA; --bar-neg: #5C7397; --court-line: #8FA6CB; --court-floor: #0E1A2D; --focus: #8FB4EA;
+  --bar-pos: #C9D6EA; --bar-neg: #5C7397; --court-line: #8FA6CB; --court-floor: #0E1A2D; --focus: #8FB4EA; --control: #C9D6EA; --on-control: #0E1A2D; --control-track: #3A4D6B; --backdrop: rgb(0 0 0 / 0.6);
 }
