@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { InfoButton } from "../components/InfoButton";
 import { Link } from "react-router-dom";
-import { CompScatter, MovingUp, RoleOutcomes } from "../components/MethodCharts";
+import { CompScatter, GapCurve, MovingUp, RoleOutcomes } from "../components/MethodCharts";
 import { loadMethodology } from "../data/load";
 import type { MethodologyFile } from "../data/types";
 import { num, seasonLabel } from "../lib/format";
@@ -219,12 +219,13 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
           <p className="def-p">Each stat is scaled from 0 to 1 first, so no stat counts more just because its numbers are bigger.</p>
         </InfoButton>
       </figcaption>
-      <div className={styles.math} aria-hidden="true">
-        <span className={styles.lhs}>Comps =</span>
+      <div className={styles.eqs} aria-hidden="true">
+      <div className={styles.math}>
+        <span className={styles.lhs}>Comps</span><span className={styles.eq}>=</span>
         <span>past transfers with the lowest Difference score</span>
       </div>
-      <div className={styles.math} aria-hidden="true">
-        <span className={styles.lhs}>Difference score =</span>
+      <div className={styles.math}>
+        <span className={styles.lhs}>Difference score</span><span className={styles.eq}>=</span>
         <Root>
           <ol>
             {sorted.map((f, i) => (
@@ -237,32 +238,31 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
           </ol>
         </Root>
       </div>
+      </div>
     </figure>
   );
 }
 
 function ZoneRule() {
   return (
-    <figure className={styles.formula} aria-label="Zone gap equals his FG% minus the D1 average FG% for his position. Luck range equals the square root of the average times one minus the average, divided by his shots in the zone. The zone is better when the gap is at least one luck range above, worse when at least one luck range below, and too close to call otherwise.">
-      <figcaption>How a zone is colored</figcaption>
-      <div className={styles.math} aria-hidden="true">
-        <span className={styles.lhs}>Gap =</span>
-        <span>his FG% − average FG%</span>
+    <figure className={styles.formula} aria-label="Gap equals his FG% minus the D1 average FG% at his position. Luck range, in percentage points, equals 100 times the square root of the D1 average times one minus the D1 average, divided by his shots from the zone. A gap more than one luck range below zero is worse, more than one luck range above is better, and anything in between is too close to call.">
+      <div className={styles.eqs} aria-hidden="true">
+      <div className={styles.math}>
+        <span className={styles.lhs}>Gap</span><span className={styles.eq}>=</span>
+        <span>his FG% − D1 avg at his position</span>
       </div>
-      <div className={styles.math} aria-hidden="true">
-        <span className={styles.lhs}>Luck range =</span>
-        <Root>
+      <div className={styles.math}>
+        <span className={styles.lhs}>Luck range</span><span className={styles.eq}>=</span>
+        <span className={styles.rootRow}>100 ×<Root>
           <span className={styles.fraction}>
-            <span>average × (1 − average)</span>
+            <span>D1 avg × (1 − D1 avg)</span>
             <span>his shots from the zone</span>
           </span>
-        </Root>
+        </Root></span>
       </div>
-      <ul className={styles.zoneRules}>
-        <li><i style={{ background: "var(--zone-better)" }} />Gap at least one luck range above: better</li>
-        <li><i style={{ background: "var(--zone-near)" }} />Gap inside the luck range: too close to call</li>
-        <li><i style={{ background: "var(--zone-worse)" }} />Gap at least one luck range below: worse</li>
-      </ul>
+      </div>
+      {/* The key doubles as the rule: where his gap lands against luck alone picks the color. */}
+      <div className={styles.gapScale}><GapCurve /></div>
     </figure>
   );
 }
@@ -272,7 +272,7 @@ function Root({ children }: { children: ReactNode }) {
   return (
     <span className={styles.root}>
       <svg className={styles.radical} viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M0 62 L5 56 L11 100 L20 0" vectorEffect="non-scaling-stroke" />
+        <path d="M0 80 L5 75 L11 100 L20 0" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className={styles.radicand}>{children}</span>
     </span>

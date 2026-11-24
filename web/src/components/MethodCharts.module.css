@@ -1,7 +1,7 @@
 .wrap { width: 100%; }
 .wrap svg { display: block; overflow: visible; }
 
-.grid { stroke: var(--line); stroke-width: 1; }
+.axisLine { stroke: var(--ink-muted); stroke-width: 1; }
 .tick { font-size: 12px; fill: var(--ink-muted); }
 .axisSub { font-size: 12px; fill: var(--ink-muted); }
 .exLabel { font-size: 13px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
@@ -73,3 +73,10 @@
   .outBar > span { font-size: var(--text-xs); }
   .compList { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Gap bell curve: grey middle within one luck range, orange and blue tails beyond it. */
+.tailWorse { fill: var(--zone-worse); }
+.tailBetter { fill: var(--zone-better); }
+.middle { fill: var(--zone-near); }
+.bell { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.bellLabel { font-size: 13px; font-weight: 600; fill: var(--ink); }
