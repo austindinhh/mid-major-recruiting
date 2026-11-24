@@ -37,6 +37,24 @@ MIN_GAMES = 10   # players below this are hidden from the board
 COMP_FEATURES = ["porpag", "dporpag", "usg", "ts", "inches", "pos_num", "origin_level", "porpag_trend"]
 COMP_WEIGHTS  = [  2.0,      2.0,      1.0,  1.0,    1.5,     1.5,        1.0,            1.0          ]
 
+# Static site export
+SITE_DATA_DIR = ROOT / "web" / "public" / "data"
+BOARD_EXPORT_COLS = [
+    "id", "player", "pos", "team", "conf", "exp", "inches", "g", "mpg", "fga",
+    "porpag", "dporpag", "projected_porpag", "gem_score",
+    "usg", "ortg", "ts", "ast", "to", "ftr",
+]
+# Stats ranked within position each season; TO% is ranked so fewer turnovers scores higher.
+PERCENTILE_COLS = [
+    "porpag", "dporpag", "projected_porpag", "ppg", "usg", "ortg", "ts",
+    "ast", "to", "ftr", "stl", "blk", "oreb_rate", "dreb_rate",
+]
+LOWER_IS_BETTER = {"to"}
+PLAYER_STAT_COLS = [
+    "ppg", "rpg", "apg", "spg", "bpg", "mpg", "usg", "ortg", "ts", "efg",
+    "ast", "to", "ftr", "oreb_rate", "dreb_rate", "stl", "blk", "ft_pct",
+]
+
 # Actual abbreviations used in the toRvik dataset
 HIGH_MAJOR_CONFERENCES = {"ACC", "B10", "B12", "BE", "P12", "SEC"}
 MID_MAJOR_CONFERENCES  = {"A10", "Amer", "MWC", "WCC", "MAC", "CUSA", "MVC", "CAA", "Horz", "SB", "WAC"}
