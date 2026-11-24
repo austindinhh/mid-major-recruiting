@@ -29,6 +29,8 @@
 .stripWrap .stripInfo { position: absolute; top: var(--s-1); right: var(--s-1); }
 
 .sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-7); margin-top: var(--s-7); }
+.full { grid-column: 1 / -1; }
+.wideNarrow { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s-7); }
 
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .table th, .table td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; }
@@ -61,6 +63,7 @@
   .team { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s-3); padding: var(--s-2) var(--s-6); border: 0; background: var(--team-plate-stacked); }
   .teamName { font-size: var(--text-xl); }
   .sections { grid-template-columns: minmax(0, 1fr); }
+  .wideNarrow { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
   .name, .proj { padding-left: var(--s-4); padding-right: var(--s-4); }

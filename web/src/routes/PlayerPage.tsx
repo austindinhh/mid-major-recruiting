@@ -79,7 +79,6 @@ export function PlayerPage() {
   const zoneAvg = averages?.[bio.pos ?? ""] ?? averages?.all ?? null;
   const posLabel = bio.pos ? `${bio.pos}s` : "players at his position";
   const lowMinutes = stats.mpg != null && stats.mpg < MIN_MPG;
-  // With no zone data the section is one line, so it goes last instead of leaving a hole beside the drivers.
   const zonesSection = (
             <section aria-labelledby="zones">
               <SectionHead id="zones" title="Shot Zones">
@@ -145,25 +144,8 @@ export function PlayerPage() {
         </InfoButton>
       </div>
 
+      {/* Coach-language answers first (projected line, comps), then the model's reasons and his game, then history. */}
       <div className={styles.sections}>
-        <section aria-labelledby="why">
-          <SectionHead id="why" title="Why the Model Projects This">
-            <p className="def-p">Each bar is how much one factor moves his projected PRPG up or down, in PRPG points. The bars are the ten largest after his current PRPG, which has its own row above them.</p>
-            <p className="def-p">Read it top to bottom: the model starts from the average transfer, adds his current PRPG and every other factor, and lands on his projection.</p>
-          </SectionHead>
-          <DriverBars player={player} />
-        </section>
-
-        {zones && zonesSection}
-        {player.career.length > 1 && (
-          <section aria-labelledby="career">
-            <SectionHead id="career" title="Career">
-              <p className="def-p">Every college season on record, oldest first, with this season shaded. A divider marks each transfer, and a season with no D1 games gets its own row. +/− is the change in PRPG from his previous season.</p>
-            </SectionHead>
-            <CareerLog career={player.career} current={season} />
-          </section>
-        )}
-
         <section aria-labelledby="box">
           <SectionHead id="box" title="Projected Box Stats">
             <p className="def-p">Per-game stats this season next to what separate models project at a Big Ten school.</p>
@@ -214,8 +196,27 @@ export function PlayerPage() {
           ) : <p className={styles.empty}>No close comparisons among past transfers.</p>}
         </section>
 
-        {pvr && (
-          <section aria-labelledby="pvr">
+        <section aria-labelledby="why">
+          <SectionHead id="why" title="Why the Model Projects This">
+            <p className="def-p">Each bar is how much one factor moves his projected PRPG up or down, in PRPG points. The bars are the ten largest after his current PRPG, which has its own row above them.</p>
+            <p className="def-p">Read it top to bottom: the model starts from the average transfer, adds his current PRPG and every other factor, and lands on his projection.</p>
+          </SectionHead>
+          <DriverBars player={player} />
+        </section>
+
+        {zonesSection}
+
+        {/* Career is wide; Prediction vs. Reality is three numbers, so it takes the narrow column beside it. */}
+        {player.career.length > 1 && (
+          <div className={pvr ? styles.wideNarrow : styles.full}>
+            <section aria-labelledby="career">
+            <SectionHead id="career" title="Career">
+              <p className="def-p">Every college season on record, oldest first, with this season shaded. A divider marks each transfer, and a season with no D1 games gets its own row. +/− is the change in PRPG from his previous season.</p>
+            </SectionHead>
+            <CareerLog career={player.career} current={season} />
+          </section>
+            {pvr && (
+              <section aria-labelledby="pvr">
             <SectionHead id="pvr" title="Prediction vs. Reality">
               <p className="def-p">His most recent transfer: what the model predicted for that move without seeing its result, and what he did. Difference is actual minus predicted.</p>
             </SectionHead>
@@ -226,8 +227,9 @@ export function PlayerPage() {
               <div className={styles.pvrDiff}><dt>Difference</dt><dd>{signed(round(pvr.actual_porpag, 2) - round(pvr.projected_porpag, 2))}</dd></div>
             </dl>
           </section>
+            )}
+          </div>
         )}
-        {!zones && zonesSection}
       </div>
     </>
   );

@@ -4,7 +4,7 @@ import { pctText } from "../lib/format";
 import styles from "./Court.module.css";
 
 // NCAA half court at 10 units per foot, baseline at the top. The rim zone is drawn
-// as a 7.2 ft circle; the data only says "at the rim", not a measured radius.
+// as an 8.8 ft circle; the data only says "at the rim", not a measured radius, so it is sized to hold its labels.
 const RIM = { cx: 250, cy: 52.5 };
 const THREE_PATH = "M33.5 0 V99.3 A221.5 221.5 0 0 0 466.5 99.3 V0";
 
@@ -17,7 +17,7 @@ const ZONES: ZoneKey[] = ["rim", "mid", "three"];
 const SHORT_NAMES: Record<ZoneKey, string> = { rim: "Rim", mid: "Midrange", three: "Three" };
 // The compact court prints FG% and the average; the full court prints FG% and a plain verdict against the average.
 const LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 90], mid: [118, 160], three: [250, 294] };
-const FULL_LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 96], mid: [124, 142], three: [250, 300] };
+const FULL_LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 100], mid: [124, 142], three: [250, 300] };
 
 interface Props {
   zones: Record<ZoneKey, Zone>;
@@ -41,7 +41,7 @@ export function Court({ zones, averages, title, compact = false }: Props) {
       <g clipPath={`url(#${clip})`}>
         <rect className={styles.zone} x="0" y="0" width="500" height="330" fill={fill("three")}><title>{describe("three")}</title></rect>
         <path className={styles.zone} d={`${THREE_PATH} Z`} fill={fill("mid")}><title>{describe("mid")}</title></path>
-        <circle className={styles.zone} cx={RIM.cx} cy={RIM.cy} r="72" fill={fill("rim")}><title>{describe("rim")}</title></circle>
+        <circle className={styles.zone} cx={RIM.cx} cy={RIM.cy} r="88" fill={fill("rim")}><title>{describe("rim")}</title></circle>
       </g>
       <g className={styles.lines} pointerEvents="none">
         <rect x="1" y="1" width="498" height="328" />
