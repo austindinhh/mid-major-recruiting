@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import (
-    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, COMP_WEIGHTS, CV_N_FOLDS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
+    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, COMP_WEIGHTS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
     HIST_PREDS_PATH, MODEL_SCORES_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
     PERCENTILE_COLS, PLAYER_SEASONS_PATH, PLAYER_STAT_COLS, SITE_DATA_DIR, TRAINING_PAIRS_PATH,
 )
@@ -115,55 +115,67 @@ def prediction_vs_reality(row: pd.Series, career: pd.DataFrame, hist_preds: pd.D
     }
 
 
+def comp_demo(ex, training_pairs, hist_preds) -> dict | None:
+    """The worked example's comps, placed on the two stats the match weighs most, with the pool around them."""
+    if ex is None:
+        return None
+    players = pd.read_parquet(DATA_DIR / f"players_{int(ex['season'])}.parquet")
+    row = players[(players["player"] == ex["player"]) & (players["team"] == ex["from_team"])]
+    if row.empty:
+        return None
+    row = row.iloc[0]
+    pool = comp_pool(training_pairs, int(ex["season"]))
+    comps = find_comps(row, pool, hist_preds).merge(pool[["id", "season", "dest_season", "dporpag"]],
+                                                    on=["id", "season", "dest_season"], how="left")
+    shown = pool.dropna(subset=["porpag", "dporpag"])
+    return {
+        "player": ex["player"], "x": row["porpag"], "y": row["dporpag"],
+        "comps": [{"player": c["player"], "to_team": c["to_team"], "x": c["porpag"], "y": c["dporpag"]}
+                  for c in comps.to_dict("records")],
+        "pool": [[r.porpag, r.dporpag] for r in shown.itertuples()],
+    }
+
+
 def methodology(player_seasons, training_pairs, hist_preds) -> dict:
     """Every number the Methodology page prints, read from the pipeline's own files."""
     scores = json.loads(MODEL_SCORES_PATH.read_text(encoding="utf-8"))
-    upward = training_pairs[training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES)
-                            & ~training_pairs["from_conf"].isin(HIGH_MAJOR_CONFERENCES)]
-    miss = hist_preds["error"].abs()
+    moves = hist_preds.merge(training_pairs[["player", "season", "dest_season", "porpag"]],
+                             on=["player", "season", "dest_season"])
 
     # The worked example: the latest season's best-producing mid-major player who moved to the Big Ten
     # and whose out-of-fold projection landed within 0.3 PRPG of what he did.
-    moves = hist_preds.merge(training_pairs[["player", "season", "dest_season", "porpag"]],
-                             on=["player", "season", "dest_season"])
-    # How often each method lands close, on the same transfers: the model's out-of-fold projection,
-    # or assuming his PRPG stays what it was before the move.
-    model_miss = moves["error"].abs()
-    flat_miss = (moves["actual_porpag"] - moves["porpag"]).abs()
-    thresholds = [{"within": t, "model": (model_miss <= t).mean(), "flat": (flat_miss <= t).mean()} for t in (0.5, 1, 1.5)]
-
     close = moves[(moves["to_conf"] == "B10") & moves["from_conf"].isin(MID_MAJOR_CONFERENCES)
                   & (moves["error"].abs() < 0.3)]
     close = close[close["dest_season"] == close["dest_season"].max()]
     ex = close.sort_values("porpag", ascending=False).iloc[0] if len(close) else None
 
+    # What moving up typically does: every move to a high-major, grouped by the role he had before it.
+    up = training_pairs[training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES)
+                        & ~training_pairs["from_conf"].isin(HIGH_MAJOR_CONFERENCES)]
+    before_role = pd.cut(up["porpag"], [0, 1, 2, 3, np.inf], labels=False)
+    moving_up = []
+    for k in range(4):
+        group = up[before_role == k]
+        moving_up.append({"role": k + 1, "n": len(group), "before": group["porpag"].median(),
+                          "after": group["target"].median(), "after_p25": group["target"].quantile(.25),
+                          "after_p75": group["target"].quantile(.75)})
+
+    # For each projected role, the share of players who actually ended up in each role.
+    edges = [-np.inf, 0, 1, 2, 3, np.inf]
+    projected_role = pd.cut(moves["projected_porpag"], edges, labels=False)
+    actual_role = pd.cut(moves["actual_porpag"], edges, labels=False)
+    roles = [{"role": int(r), "shares": [float((actual_role[projected_role == r] == k).mean()) for k in range(5)]}
+             for r in range(1, 5)]
+
     return {
-        "generated": date.today().isoformat(),
         "player_seasons": len(player_seasons),
-        "players": int(player_seasons["id"].nunique()),
         "first_season": int(player_seasons["year"].min()),
-        "last_season": int(player_seasons["year"].max()),
         "transfers": len(training_pairs),
-        "transfers_up_to_high_major": len(upward),
-        "cv_folds": CV_N_FOLDS,
         "min_games": MIN_GAMES,
-        "models": {k: {"mae": scores[k]["mae"], "rmse": scores[k]["rmse"]} for k in ("naive", "ridge", "lgbm")},
-        "box": {stat: {"naive_mae": v["naive"]["mae"], "lgbm_mae": v["lgbm"]["mae"]}
-                for stat, v in scores["stat_models"].items()},
-        "out_of_fold": {
-            "n": len(hist_preds),
-            "first_dest_season": int(hist_preds["dest_season"].min()),
-            "mae": miss.mean(),
-            "within_half": (miss <= 0.5).mean(),
-            "within_one": (miss <= 1).mean(),
-            "thresholds": thresholds,
-        },
-        "example": None if ex is None else {
-            "player": ex["player"], "from_team": ex["from_team"], "from_conf": ex["from_conf"],
-            "to_team": ex["to_team"], "to_conf": ex["to_conf"], "season": int(ex["season"]),
-            "dest_season": int(ex["dest_season"]), "before": ex["porpag"],
-            "projected": ex["projected_porpag"], "actual": ex["actual_porpag"],
-        },
+        "typical_miss": scores["lgbm"]["mae"],
+        "moving_up": moving_up,
+        "roles": roles,
+        "comp_demo": comp_demo(ex, training_pairs, hist_preds),
         "features": [{"key": f, "label": FEATURE_LABELS.get(f, f)} for f in FEATURE_COLS],
         "comp_features": [{"label": FEATURE_LABELS.get(f, f), "weight": w} for f, w in zip(COMP_FEATURES, COMP_WEIGHTS)],
     }

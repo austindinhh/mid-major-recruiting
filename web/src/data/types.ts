@@ -127,24 +127,17 @@ export interface PlayerFile {
 }
 
 export interface MethodologyFile {
-  generated: string;
   player_seasons: number;
-  players: number;
   first_season: number;
-  last_season: number;
   transfers: number;
-  transfers_up_to_high_major: number;
-  cv_folds: number;
   min_games: number;
-  models: Record<"naive" | "ridge" | "lgbm", { mae: number; rmse: number }>;
-  box: Record<string, { naive_mae: number; lgbm_mae: number }>;
-  out_of_fold: {
-    n: number; first_dest_season: number; mae: number; within_half: number; within_one: number;
-    thresholds: { within: number; model: number; flat: number }[];
-  };
-  example: {
-    player: string; from_team: string; from_conf: string; to_team: string; to_conf: string;
-    season: number; dest_season: number; before: number; projected: number; actual: number;
+  typical_miss: number;
+  moving_up: { role: number; n: number; before: number; after: number; after_p25: number; after_p75: number }[];
+  roles: { role: number; shares: number[] }[];
+  comp_demo: {
+    player: string; x: number; y: number;
+    comps: { player: string; to_team: string; x: number; y: number }[];
+    pool: [number, number][];
   } | null;
   features: { key: string; label: string }[];
   comp_features: { label: string; weight: number }[];
