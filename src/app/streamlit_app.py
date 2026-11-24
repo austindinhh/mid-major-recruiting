@@ -21,9 +21,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES, MID_MAJOR_CONFERENCES
-from src.features.build import FEATURE_COLS
-from src.model.predict import add_gem_score
+from src.config import (
+    APP_CONFIG_PATH, DATA_DIR, HIGH_MAJOR_CONFERENCES, HIST_PREDS_PATH, MID_MAJOR_CONFERENCES,
+    MIN_GAMES, PLAYER_SEASONS_PATH, TRAINING_PAIRS_PATH,
+)
+from src.model.scouting import (
+    FEATURE_LABELS, comp_pool, contributions, find_comps, project,
+    season_label as _season_label, shot_zones, tier_levels, top_contributions,
+)
 from src.model.train import load_lgbm
 
 # ---------------------------------------------------------------------------
@@ -108,17 +113,6 @@ hr {
 # Constants
 # ---------------------------------------------------------------------------
 
-APP_CONFIG_PATH      = DATA_DIR / "app_config.json"
-HIST_PREDS_PATH      = DATA_DIR / "historical_predictions.parquet"
-PLAYER_SEASONS_PATH  = DATA_DIR / "player_seasons.parquet"
-TRAINING_PAIRS_PATH  = DATA_DIR / "training_pairs.parquet"
-
-# Features and weights for nearest-neighbour comp matching.
-# Production and physical profile are weighted higher than peripheral stats.
-# exp_num excluded — class year is irrelevant for comp quality.
-_COMP_FEATURES = ["porpag", "dporpag", "usg", "ts", "inches", "pos_num", "origin_level", "porpag_trend"]
-_COMP_WEIGHTS  = [  2.0,      2.0,      1.0,  1.0,    1.5,     1.5,        1.0,            1.0          ]
-
 BOARD_COLS = [
     "rank", "player", "profile", "pos", "team", "conf", "exp",
     "g", "porpag", "dporpag", "projected_porpag",
@@ -143,40 +137,6 @@ COL_LABELS = {
     "ast":               "AST%",
     "to":                "TO%",
     "ftr":               "FTR",
-}
-
-# Human-readable SHAP feature labels for the player detail chart
-FEATURE_LABELS = {
-    "porpag":           "Origin production (PRPG)",
-    "ft_pct":           "Free throw percentage",
-    "team_barthag":     "Strength of competition faced",
-    "destination_level":"Target level jump",
-    "origin_level":     "Current competition level",
-    "team_adj_d":       "Defensive environment",
-    "dreb_rate":        "Defensive rebounding rate",
-    "usg":              "Usage rate",
-    "mpg":              "Minutes per game",
-    "to":               "Turnover rate",
-    "rec":              "Recruiting pedigree",
-    "ortg":             "Offensive rating",
-    "ts":               "True shooting percentage",
-    "ast":              "Assist rate",
-    "oreb_rate":        "Offensive rebounding rate",
-    "dporpag":          "Defensive production (DPRPG)",
-    "blk":              "Block rate",
-    "stl":              "Steal rate",
-    "ftr":              "Free throw rate",
-    "efg":              "Effective FG percentage",
-    "three_pa_rate":    "3-point attempt rate",
-    "g":                "Games played",
-    "min":              "Minutes rate",
-    "exp_num":          "Class year",
-    "inches":           "Height",
-    "team_adj_o":       "Offensive team environment",
-    "pos_num":          "Position",
-    "porpag_trend":     "Year-over-year PRPG change",
-    "obpm":             "Offensive box plus/minus",
-    "dbpm":             "Defensive box plus/minus",
 }
 
 # Hover tooltip text for each stat shown in the player detail section.
@@ -271,20 +231,7 @@ def load_season_players(season: int) -> tuple[pd.DataFrame, dict]:
         st.stop()
     df = pd.read_parquet(path)
 
-    # Tier levels computed from conference barthag averages in the selected season's data.
-    # High-major teams are excluded from per-season player files (they're not transfer targets),
-    # so the high-major level comes from app_config.
-    conf_levels = df.groupby("conf")["conf_barthag"].first()
-    mid_level = float(conf_levels[conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
-    low_level = float(conf_levels[~conf_levels.index.isin(MID_MAJOR_CONFERENCES)].mean())
-    high_level = load_app_config().get("default_dest_level", 0.77)
-
-    tier_levels = {
-        "Low-Major":  round(low_level, 3),
-        "Mid-Major":  round(mid_level, 3),
-        "High-Major": round(high_level, 3),
-    }
-    return df, tier_levels
+    return df, tier_levels(df, load_app_config().get("default_dest_level", 0.77))
 
 
 @st.cache_resource
@@ -317,32 +264,15 @@ def load_training_pairs() -> pd.DataFrame | None:
 # Core functions
 # ---------------------------------------------------------------------------
 
-def project(players: pd.DataFrame, dest_level: float, model) -> pd.DataFrame:
-    df = players.copy()
-    df["destination_level"] = dest_level
-    feat_cols = [c for c in FEATURE_COLS if c in df.columns]
-    df["projected_porpag"] = model.predict(df[feat_cols])
-    return add_gem_score(df)
-
-
 def contribution_chart(player_row: pd.Series, model) -> go.Figure:
     """
     Uses LightGBM's native pred_contrib to show which features drive the
     projection for a single player. Displayed as a horizontal bar chart.
     """
-    feat_cols = [c for c in FEATURE_COLS if c in player_row.index]
-    X = player_row[feat_cols].to_frame().T.astype(float)
-
-    # pred_contrib returns (n_samples, n_features + 1); last col is bias
-    contribs = model.predict(X, pred_contrib=True)[0, :-1]
-    # Exclude origin PORPAG — it dominates by design and obscures the other drivers.
-    # Showing what *else* moves the needle is more useful for a GM.
+    contribs, _ = contributions(player_row.to_frame().T, model)
     series = (
-        pd.Series(contribs, index=feat_cols)
-        .drop(labels=[c for c in feat_cols if c == "porpag"], errors="ignore")
+        top_contributions(contribs.iloc[0])
         .rename(index=FEATURE_LABELS)
-        .sort_values(key=abs, ascending=False)
-        .head(10)
         .sort_values()  # ascending so most positive is at top of horizontal chart
     )
 
@@ -444,21 +374,12 @@ def career_chart(
 
 
 def shot_profile_chart(player_row: pd.Series) -> go.Figure | None:
-    fga = pd.to_numeric(player_row.get("fga"), errors="coerce")
-    rim_a = pd.to_numeric(player_row.get("rim_a"), errors="coerce")
-    mid_a = pd.to_numeric(player_row.get("mid_a"), errors="coerce")
-    three_a = pd.to_numeric(player_row.get("three_a"), errors="coerce")
-
-    if any(pd.isna(v) for v in [fga, rim_a, mid_a, three_a]) or fga == 0:
+    zones = shot_zones(player_row)
+    if zones is None:
         return None
-
-    rim_share   = rim_a   / fga
-    mid_share   = mid_a   / fga
-    three_share = three_a / fga
-
-    rim_pct   = pd.to_numeric(player_row.get("rim_pct"),   errors="coerce")
-    mid_pct   = pd.to_numeric(player_row.get("mid_pct"),   errors="coerce")
-    three_pct = pd.to_numeric(player_row.get("three_pct"), errors="coerce")
+    rim_share, mid_share, three_share = (zones[z]["share"] for z in ("rim", "mid", "three"))
+    rim_pct, mid_pct, three_pct = (zones[z]["pct"] for z in ("rim", "mid", "three"))
+    rim_pct, mid_pct, three_pct = (np.nan if v is None else v for v in (rim_pct, mid_pct, three_pct))
 
     def _pct_label(share, pct):
         if share < 0.06:
@@ -507,72 +428,6 @@ def shot_profile_chart(player_row: pd.Series) -> go.Figure | None:
 # App
 # ---------------------------------------------------------------------------
 
-def find_comps(
-    player_row: pd.Series,
-    training_pairs: pd.DataFrame,
-    hist_preds: pd.DataFrame,
-    current_season: int,
-    n: int = 3,
-) -> pd.DataFrame:
-    """
-    Return the n most similar completed upward-to-high-major transfers using
-    weighted L2 distance on _COMP_FEATURES, min-max normalised across the pool.
-    porpag_trend NaN is imputed to 0 (no prior season = neutral trend) rather
-    than dropped, so first-year players remain in the candidate pool.
-    Only uses dest_season < current_season so all outcomes have already happened.
-    """
-    pool = training_pairs[
-        (training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES))
-        & (training_pairs["dest_season"] < current_season)
-        & (training_pairs["player"] != player_row.get("player", ""))
-    ].copy()
-
-    cols = [c for c in _COMP_FEATURES if c in pool.columns and c in player_row.index]
-    weights = [_COMP_WEIGHTS[_COMP_FEATURES.index(c)] for c in cols]
-    w = np.array(weights)
-
-    # Impute porpag_trend with 0 (neutral) rather than dropping the row.
-    # Drop only rows missing core production/physical features.
-    non_imputable = [c for c in cols if c != "porpag_trend"]
-    pool = pool.dropna(subset=non_imputable)
-    pool["porpag_trend"] = pool["porpag_trend"].fillna(0)
-
-    # Min-max scale then apply feature weights
-    mins = pool[cols].min()
-    maxs = pool[cols].max()
-    rng = (maxs - mins).replace(0, 1)
-    pool_scaled = (pool[cols] - mins) / rng
-
-    target = pd.to_numeric(player_row[cols], errors="coerce").fillna(0)
-    target_scaled = (target - mins) / rng
-
-    pool["_dist"] = np.sqrt((w * (pool_scaled - target_scaled) ** 2).sum(axis=1))
-
-    # A player may appear multiple times (one row per origin season feeding the same
-    # destination). Keep only the closest-distance row per unique transfer event.
-    pool = pool.sort_values("_dist").drop_duplicates(subset=["player", "dest_season"], keep="first")
-    nearest = pool.nsmallest(n, "_dist")
-
-    # actual_porpag is always available from training_pairs target column.
-    # projected_porpag is only available from hist_preds (dest_season >= 2020).
-    nearest["actual_porpag"] = nearest["target"]
-    if hist_preds is not None:
-        nearest = nearest.merge(
-            hist_preds[["player", "season", "dest_season", "projected_porpag"]],
-            on=["player", "season", "dest_season"],
-            how="left",
-        )
-    else:
-        nearest["projected_porpag"] = np.nan
-
-    return nearest[["player", "from_team", "from_conf", "to_team", "to_conf",
-                     "dest_season", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
-
-
-def _season_label(year: int) -> str:
-    return f"{year - 1}-{str(year)[2:]}"
-
-
 def main() -> None:
     st.markdown(_ILLINOIS_CSS, unsafe_allow_html=True)
     model = load_model()
@@ -600,8 +455,8 @@ def main() -> None:
         )
         season = season_labels[selected_label]
 
-        season_players, tier_levels = load_season_players(season)
-        dest_level = tier_levels["High-Major"]
+        season_players, tiers = load_season_players(season)
+        dest_level = tiers["High-Major"]
 
         all_pos     = sorted(season_players["pos"].dropna().unique())
         all_confs   = sorted(season_players["conf"].dropna().unique())
@@ -623,7 +478,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     projected = project(season_players, dest_level, model)
 
-    mask = projected["g"] >= 10
+    mask = projected["g"] >= MIN_GAMES
     if pos_filter:
         mask &= projected["pos"].isin(pos_filter)
     if conf_filter:
@@ -853,7 +708,7 @@ def main() -> None:
         if training_pairs is not None:
             player_row = projected[projected["player"] == selected]
             if not player_row.empty:
-                comps = find_comps(player_row.iloc[0], training_pairs, hist_preds, season)
+                comps = find_comps(player_row.iloc[0], comp_pool(training_pairs, season), hist_preds)
                 if not comps.empty:
                     st.markdown("**Similar Historical Transfers**")
                     comp_rows = []
