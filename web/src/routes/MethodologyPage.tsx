@@ -112,8 +112,9 @@ export function MethodologyPage() {
         </figure>
       }>
         <p>
-          PRPG is BartTorvik's points over replacement per game: how many points a game a player adds on offense over a
-          replacement-level player. Def PRPG is the same idea on defense.
+          PRPG is BartTorvik's{" "}
+          <a href="https://barttorvik.com/porpagatu.html">points over replacement per game</a>: how many points a game a
+          player adds on offense over a replacement-level player. Def PRPG is the same idea on defense.
         </p>
         <p>
           Projected PRPG is the model's estimate for his first season at a team in an average high-major conference, which
@@ -249,7 +250,7 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
   const sorted = [...comp].sort((a, b) => b.weight - a.weight);
   const w = (v: number) => num(v, v % 1 ? 1 : 0);
   return (
-    <figure className={styles.formula} aria-label={`Comps are the past transfers with the lowest difference score. Difference score equals the square root of the sum of each weight times the squared gap: ${sorted.map((f) => `${w(f.weight)} times ${f.label}`).join(", ")}.`}>
+    <figure className={styles.formula} aria-label={`Comps are the past transfers with the lowest Difference Score. Difference Score equals the square root of the sum of each weight times the squared gap: ${sorted.map((f) => `${w(f.weight)} times ${f.label}`).join(", ")}.`}>
       <figcaption className={styles.formulaHead}>
         How a match is scored
         <InfoButton label="how a match is scored">
@@ -263,10 +264,10 @@ function CompFormula({ comp }: { comp: MethodologyFile["comp_features"] }) {
       <div className={styles.eqs} aria-hidden="true">
       <div className={styles.math}>
         <span className={styles.lhs}>Comps</span><span className={styles.eq}>=</span>
-        <span>past transfers with the lowest Difference score</span>
+        <span>past transfers with the lowest <i>Difference Score</i></span>
       </div>
       <div className={styles.math}>
-        <span className={styles.lhs}>Difference score</span><span className={styles.eq}>=</span>
+        <span className={styles.lhs}><i>Difference Score</i></span><span className={styles.eq}>=</span>
         <Root>
           <ol>
             {sorted.map((f, i) => (
