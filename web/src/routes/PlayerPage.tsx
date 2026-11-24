@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { useApp } from "../appContext";
 import { CareerChart } from "../components/CareerChart";
-import { Court, ZoneLegend, ZoneTable } from "../components/Court";
+import { Court, CourtKey, ShotMix } from "../components/Court";
 import { DriverBars } from "../components/DriverBars";
 import { DefButton, InfoButton, SectionHead } from "../components/InfoButton";
 import { loadPlayer, loadZoneAverages } from "../data/load";
@@ -83,13 +83,13 @@ export function PlayerPage() {
   const zonesSection = (
             <section aria-labelledby="zones">
               <SectionHead id="zones" title="Shot Zones">
-                <p className="def-p">The court shows his FG% in each zone. Zone color compares it with the D1 average for {posLabel} this season, and Diff is the gap in percentage points. Attempts are his shots from the zone, with their share of all his shots.</p>
+                <p className="def-p">The bar shows where his shots come from. The court shows his FG% in each zone and how far it is from the D1 average for {posLabel} this season, in percentage points. Blue zones are 2 or more points better than average, orange zones 2 or more worse, and deeper colors mean 6 or more.</p>
               </SectionHead>
               {zones ? (
                 <>
+                  <ShotMix zones={zones} />
                   <Court zones={zones} averages={zoneAvg} title={`Shot zones for ${bio.player}`} />
-                  <ZoneTable zones={zones} averages={zoneAvg} />
-                <ZoneLegend zones={zones} showShare={false} />
+                  <CourtKey group={posLabel} />
                 </>
               ) : <p className={styles.empty}>No shot-zone data for this season.</p>}
             </section>

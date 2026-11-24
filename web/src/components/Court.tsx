@@ -1,6 +1,6 @@
 import { useId } from "react";
 import type { Zone, ZoneAverage, ZoneKey } from "../data/types";
-import { pctText, signed, zoneBin, type PctBin } from "../lib/format";
+import { pctText, zoneBin, type PctBin } from "../lib/format";
 import styles from "./Court.module.css";
 
 // NCAA half court at 10 units per foot, baseline at the top. The rim zone is drawn
@@ -14,9 +14,9 @@ const BIN_FILL: Record<PctBin, string> = {
 };
 const ZONES: ZoneKey[] = ["rim", "mid", "three"];
 const SHORT_NAMES: Record<ZoneKey, string> = { rim: "Rim", mid: "Midrange", three: "Three" };
-// The compact court prints FG% and the average; the full court prints FG% alone and leaves the rest to ZoneTable.
+// The compact court prints FG% and the average; the full court prints FG% and a plain verdict against the average.
 const LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 90], mid: [118, 160], three: [250, 294] };
-const FULL_LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 106], mid: [118, 172], three: [250, 312] };
+const FULL_LABEL_AT: Record<ZoneKey, [number, number]> = { rim: [250, 96], mid: [124, 142], three: [250, 300] };
 
 interface Props {
   zones: Record<ZoneKey, Zone>;
@@ -58,6 +58,7 @@ export function Court({ zones, averages, title, compact = false }: Props) {
             <text key={z} x={x} y={y}>
               <tspan className={styles.rate}>{pctText(zones[z].pct)}</tspan>
               {compact && avg != null && <tspan x={x} dy="1.2em">Avg {(avg * 100).toFixed(1)}</tspan>}
+              {!compact && <tspan className={styles.verdict} x={x} dy="1.45em">{verdict(zoneDiff(zones[z], averages?.[z]))}</tspan>}
             </text>
           );
         })}
@@ -72,42 +73,56 @@ function zoneDiff(zone: Zone, avg: ZoneAverage | undefined): number | null {
   return Number((zone.pct * 100).toFixed(1)) - Number((avg.pct * 100).toFixed(1));
 }
 
-// The full court's companion: volume, FG% and the average for each zone, keyed to the court by color.
-export function ZoneTable({ zones, averages }: { zones: Record<ZoneKey, Zone>; averages: Record<ZoneKey, ZoneAverage> | null }) {
+// Matches the color bins: within 2 points reads as average.
+function verdict(d: number | null): string {
+  if (d == null) return "";
+  if (Math.abs(d) < 2) return "Near avg";
+  return `${Math.abs(d).toFixed(1)} ${d > 0 ? "above" : "below"} avg`;
+}
+
+// Where his shots come from, as one bar split by share, rim to three. Labels sit under their segment;
+// narrow segments push their neighbors over rather than overlap them.
+export function ShotMix({ zones }: { zones: Record<ZoneKey, Zone> }) {
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr><th scope="col">Zone</th><th scope="col">Attempts</th><th scope="col">FG%</th><th scope="col">D1 avg</th><th scope="col">Diff</th></tr>
-      </thead>
-      <tbody>
-        {ZONES.map((z) => {
-          const d = zoneDiff(zones[z], averages?.[z]);
-          return (
-            <tr key={z}>
-              <th scope="row"><span className={styles.swatch} style={{ background: BIN_FILL[zoneBin(d) ?? "mid"] }} />{SHORT_NAMES[z]}</th>
-              <td>{zones[z].att} <span className={styles.muted}>({Math.round(zones[z].share * 100)}%)</span></td>
-              <td className={styles.strong}>{pctText(zones[z].pct)}</td>
-              <td>{pctText(averages?.[z]?.pct)}</td>
-              <td>{signed(d, 1)}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+    <figure className={styles.shotMix} aria-label={`Shot mix: ${ZONES.map((z) => `${SHORT_NAMES[z]} ${Math.round(zones[z].share * 100)}%, ${zones[z].att} shots`).join("; ")}`}>
+      <div className={styles.mixBar} aria-hidden="true">
+        {ZONES.map((z) => <span key={z} style={{ flexBasis: `${zones[z].share * 100}%` }} />)}
+      </div>
+      <div className={styles.mixLabels} aria-hidden="true">
+        {ZONES.map((z) => (
+          <span key={z} style={{ flexBasis: `${zones[z].share * 100}%` }}>
+            <b>{SHORT_NAMES[z]} {Math.round(zones[z].share * 100)}%</b>
+            <span>{zones[z].att} shots</span>
+          </span>
+        ))}
+      </div>
+    </figure>
   );
 }
 
-// The drawer shows each zone's share of shots here; the full page uses ZoneTable instead.
-export function ZoneLegend({ zones, showShare = true }: { zones: Record<ZoneKey, Zone>; showShare?: boolean }) {
+// The full court labels each zone in words, so its key only needs the three meanings.
+// Better and worse each show both of their steps, so the key matches whichever one the court uses.
+export function CourtKey({ group }: { group: string }) {
+  return (
+    <p className={styles.courtKey}>
+      <span><i className="bin-hi1" /><i className="bin-hi2" />Better than D1 {group}</span>
+      <span><i style={{ background: "var(--div-mid)" }} />Near average</span>
+      <span><i className="bin-lo1" /><i className="bin-lo2" />Worse</span>
+    </p>
+  );
+}
+
+// The drawer's caption: share of shots and the five-step scale.
+export function ZoneLegend({ zones }: { zones: Record<ZoneKey, Zone> }) {
   const titleId = useId();
   return (
     <div className={styles.caption}>
-      {showShare && <dl className={styles.mix}>
+      <dl className={styles.mix}>
         <dt>Share of shots</dt>
         {ZONES.map((z) => (
           <div key={z}><dt>{SHORT_NAMES[z]}</dt><dd>{Math.round(zones[z].share * 100)}%</dd></div>
         ))}
-      </dl>}
+      </dl>
       <p className={styles.legendTitle} id={titleId}>FG% compared with the D1 average at his position</p>
       <ol className={styles.legend} aria-labelledby={titleId}>
         <li><span className="bin-lo2" />6+ pts worse</li>
