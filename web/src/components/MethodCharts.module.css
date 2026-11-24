@@ -55,8 +55,10 @@
 .poolDot { fill: var(--seq-2); }
 .compLink { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .compDot { fill: var(--bg); stroke: var(--ink); stroke-width: 2.5; }
-.youDot { fill: var(--ink); stroke: var(--bg); stroke-width: 2; }
-.compNum { font-size: 12px; font-weight: 700; fill: var(--ink); }
+/* A ring of page color keeps touching marks apart. */
+.halo { fill: var(--bg); }
+.youDot { fill: var(--ink); stroke: var(--bg); stroke-width: 2.5; }
+.compNum { font-weight: 700; fill: var(--ink); }
 .keyPool { width: 8px; height: 8px; border-radius: 50%; background: var(--seq-2); }
 .keyYou { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); }
 

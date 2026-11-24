@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import (
-    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, COMP_WEIGHTS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
+    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, METHODOLOGY_COMP_EXAMPLE, COMP_WEIGHTS, CV_N_FOLDS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
     HIST_PREDS_PATH, MODEL_SCORES_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
     PERCENTILE_COLS, PLAYER_SEASONS_PATH, PLAYER_STAT_COLS, SITE_DATA_DIR, TRAINING_PAIRS_PATH,
 )
@@ -115,39 +115,36 @@ def prediction_vs_reality(row: pd.Series, career: pd.DataFrame, hist_preds: pd.D
     }
 
 
-def comp_demo(ex, training_pairs, hist_preds) -> dict | None:
-    """The worked example's comps, placed on the two stats the match weighs most, with the pool around them."""
-    if ex is None:
+def comp_demo(training_pairs, hist_preds) -> dict | None:
+    """The example player's comps, placed on the two stats the match weighs most, with the pool around them."""
+    name, team = METHODOLOGY_COMP_EXAMPLE
+    move = training_pairs[(training_pairs["player"] == name) & (training_pairs["from_team"] == team)]
+    if move.empty:
         return None
-    players = pd.read_parquet(DATA_DIR / f"players_{int(ex['season'])}.parquet")
-    row = players[(players["player"] == ex["player"]) & (players["team"] == ex["from_team"])]
+    season = int(move["season"].max())
+    players = pd.read_parquet(DATA_DIR / f"players_{season}.parquet")
+    row = players[(players["player"] == name) & (players["team"] == team)]
     if row.empty:
         return None
     row = row.iloc[0]
-    pool = comp_pool(training_pairs, int(ex["season"]))
+    pool = comp_pool(training_pairs, season)
     comps = find_comps(row, pool, hist_preds).merge(pool[["id", "season", "dest_season", "dporpag"]],
                                                     on=["id", "season", "dest_season"], how="left")
     shown = pool.dropna(subset=["porpag", "dporpag"])
     return {
-        "player": ex["player"], "x": row["porpag"], "y": row["dporpag"],
+        "player": name, "x": row["porpag"], "y": row["dporpag"],
         "comps": [{"player": c["player"], "to_team": c["to_team"], "x": c["porpag"], "y": c["dporpag"]}
                   for c in comps.to_dict("records")],
         "pool": [[r.porpag, r.dporpag] for r in shown.itertuples()],
     }
 
 
-def methodology(player_seasons, training_pairs, hist_preds) -> dict:
+def methodology(player_seasons, training_pairs, hist_preds, model, season, dest_level) -> dict:
     """Every number the Methodology page prints, read from the pipeline's own files."""
     scores = json.loads(MODEL_SCORES_PATH.read_text(encoding="utf-8"))
     moves = hist_preds.merge(training_pairs[["player", "season", "dest_season", "porpag"]],
                              on=["player", "season", "dest_season"])
 
-    # The worked example: the latest season's best-producing mid-major player who moved to the Big Ten
-    # and whose out-of-fold projection landed within 0.3 PRPG of what he did.
-    close = moves[(moves["to_conf"] == "B10") & moves["from_conf"].isin(MID_MAJOR_CONFERENCES)
-                  & (moves["error"].abs() < 0.3)]
-    close = close[close["dest_season"] == close["dest_season"].max()]
-    ex = close.sort_values("porpag", ascending=False).iloc[0] if len(close) else None
 
     # What moving up typically does: every move to a high-major, grouped by the role he had before it.
     up = training_pairs[training_pairs["to_conf"].isin(HIGH_MAJOR_CONFERENCES)
@@ -167,16 +164,29 @@ def methodology(player_seasons, training_pairs, hist_preds) -> dict:
     roles = [{"role": int(r), "shares": [float((actual_role[projected_role == r] == k).mean()) for k in range(5)]}
              for r in range(1, 5)]
 
+    # How much each input moves projections: mean absolute contribution across the season's board players.
+    players = pd.read_parquet(DATA_DIR / f"players_{season}.parquet")
+    board = project(players, tier_levels(players, dest_level)["High-Major"], model)
+    board = board[board["g"] >= MIN_GAMES]
+    contribs, _ = contributions(board, model)
+    weight = (contribs.abs().mean() / contribs.abs().mean().sum()).to_dict()
+
     return {
+        "players": int(player_seasons["id"].nunique()),
+        "transfer_players": int(training_pairs["id"].nunique()),
+        "board_season": int(season),
+        "board_players": len(board),
+        "cv_folds": CV_N_FOLDS,
+        "models": {k: {m: scores[k].get(m) for m in ("mae", "mae_std", "rmse")} for k in ("naive", "ridge", "lgbm")},
+        "box": {stat: {"naive_mae": v["naive"]["mae"], "lgbm_mae": v["lgbm"]["mae"]} for stat, v in scores["stat_models"].items()},
         "player_seasons": len(player_seasons),
         "first_season": int(player_seasons["year"].min()),
         "transfers": len(training_pairs),
         "min_games": MIN_GAMES,
-        "typical_miss": scores["lgbm"]["mae"],
         "moving_up": moving_up,
         "roles": roles,
-        "comp_demo": comp_demo(ex, training_pairs, hist_preds),
-        "features": [{"key": f, "label": FEATURE_LABELS.get(f, f)} for f in FEATURE_COLS],
+        "comp_demo": comp_demo(training_pairs, hist_preds),
+        "features": [{"key": f, "label": FEATURE_LABELS.get(f, f), "weight": weight.get(f, 0.0)} for f in FEATURE_COLS],
         "comp_features": [{"label": FEATURE_LABELS.get(f, f), "weight": w} for f, w in zip(COMP_FEATURES, COMP_WEIGHTS)],
     }
 
@@ -286,7 +296,8 @@ def main() -> None:
         for s in sorted(seasons)
     ]
 
-    _write(SITE_DATA_DIR / "methodology.json", methodology(player_seasons, training_pairs, hist_preds))
+    _write(SITE_DATA_DIR / "methodology.json",
+           methodology(player_seasons, training_pairs, hist_preds, model, app_config["default_season"], dest_level))
 
     # seasons.json goes last so a partial export never reaches the site.
     # A --seasons run keeps the entries for seasons it did not touch.

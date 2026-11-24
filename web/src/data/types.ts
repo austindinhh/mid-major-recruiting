@@ -127,11 +127,17 @@ export interface PlayerFile {
 }
 
 export interface MethodologyFile {
+  players: number;
+  transfer_players: number;
+  board_season: number;
+  board_players: number;
+  cv_folds: number;
+  models: Record<"naive" | "ridge" | "lgbm", { mae: number; mae_std: number | null; rmse: number }>;
+  box: Record<string, { naive_mae: number; lgbm_mae: number }>;
   player_seasons: number;
   first_season: number;
   transfers: number;
   min_games: number;
-  typical_miss: number;
   moving_up: { role: number; n: number; before: number; after: number; after_p25: number; after_p75: number }[];
   roles: { role: number; shares: number[] }[];
   comp_demo: {
@@ -139,6 +145,6 @@ export interface MethodologyFile {
     comps: { player: string; to_team: string; x: number; y: number }[];
     pool: [number, number][];
   } | null;
-  features: { key: string; label: string }[];
+  features: { key: string; label: string; weight: number }[];
   comp_features: { label: string; weight: number }[];
 }

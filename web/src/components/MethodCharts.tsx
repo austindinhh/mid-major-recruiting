@@ -83,6 +83,7 @@ export function CompScatter({ demo }: { demo: NonNullable<Data["comp_demo"]> }) 
   const x = (v: number) => pad.left + ((clamp(v, xLo, xHi) - xLo) / (xHi - xLo)) * (width - pad.left - pad.right);
   const y = (v: number) => pad.top + (1 - (clamp(v, yLo, yHi) - yLo) / (yHi - yLo)) * (H - pad.top - pad.bottom);
   const last = (s: string) => s.split(" ").slice(-1)[0];
+  const badgeR = width < 480 ? 8 : 9, youR = width < 480 ? 6 : 8;
 
   return (
     <div ref={ref} className={styles.wrap}>
@@ -104,15 +105,24 @@ export function CompScatter({ demo }: { demo: NonNullable<Data["comp_demo"]> }) 
         <text className={styles.axisSub} transform={`translate(12 ${(pad.top + H - pad.bottom) / 2}) rotate(-90)`} textAnchor="middle">Defense PRPG</text>
         {demo.pool.filter(([a, b]) => a >= xLo && a <= xHi && b >= yLo && b <= yHi)
           .map(([a, b], i) => <circle key={i} className={styles.poolDot} cx={x(a)} cy={y(b)} r={2.5} />)}
-        {demo.comps.map((c) => <line key={c.player} className={styles.compLink} x1={x(demo.x)} y1={y(demo.y)} x2={x(c.x)} y2={y(c.y)} />)}
+        {demo.comps.map((c) => {
+          // Links run edge to edge between the circles; a pair too close to need one gets none, and so do phones,
+          // where every comp sits right beside him.
+          const [x1, y1, x2, y2] = [x(demo.x), y(demo.y), x(c.x), y(c.y)];
+          const len = Math.hypot(x2 - x1, y2 - y1);
+          if (width < 480 || len < youR + badgeR + 24) return null;
+          const [ux, uy] = [(x2 - x1) / len, (y2 - y1) / len];
+          return <line key={c.player} className={styles.compLink} x1={x1 + ux * youR} y1={y1 + uy * youR} x2={x2 - ux * badgeR} y2={y2 - uy * badgeR} />;
+        })}
         {demo.comps.map((c, i) => (
           <g key={c.player}>
-            <circle className={styles.compDot} cx={x(c.x)} cy={y(c.y)} r={9} />
-            <text className={styles.compNum} x={x(c.x)} y={y(c.y)} dy="0.35em" textAnchor="middle">{i + 1}</text>
+            <circle className={styles.halo} cx={x(c.x)} cy={y(c.y)} r={badgeR + 2.5} />
+            <circle className={styles.compDot} cx={x(c.x)} cy={y(c.y)} r={badgeR} />
+            <text className={styles.compNum} x={x(c.x)} y={y(c.y)} dy="0.35em" textAnchor="middle" fontSize={width < 480 ? 10 : 12}>{i + 1}</text>
           </g>
         ))}
-        <circle className={styles.youDot} cx={x(demo.x)} cy={y(demo.y)} r={8} />
-        <text className={styles.exLabel} x={x(demo.x)} y={y(demo.y) - 14} textAnchor="middle">{width < 480 ? last(demo.player) : demo.player}</text>
+        <circle className={styles.youDot} cx={x(demo.x)} cy={y(demo.y)} r={youR} />
+        <text className={styles.exLabel} x={x(demo.x) + 10} y={y(demo.y) - 14} textAnchor="start">{width < 480 ? last(demo.player) : demo.player}</text>
       </svg>
       <p className={styles.key}>
         <span><i className={styles.keyPool} />Past transfer to a high-major</span>

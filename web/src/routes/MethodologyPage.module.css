@@ -10,10 +10,9 @@
 .strip dd { margin: 0; font-family: var(--font-plate); font-weight: 700; font-size: var(--text-2xl); line-height: 1.15; }
 
 .section { margin-top: var(--s-7); }
-.section h2 {
-  margin: 0 0 var(--s-4); padding-bottom: var(--s-2); border-bottom: var(--section-rule) solid var(--rule);
-  font-family: var(--font-plate); font-weight: 700; font-size: var(--text-xl); line-height: 1.2;
-}
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-4); padding-bottom: var(--s-2); border-bottom: var(--section-rule) solid var(--rule); }
+.head h2 { margin: 0; font-family: var(--font-plate); font-weight: 700; font-size: var(--text-xl); line-height: 1.2; }
+.headLink { margin-left: auto; padding-block: var(--s-1); font-size: var(--text-sm); font-weight: 600; }
 .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--s-7); align-items: start; }
 .prose p { margin: 0 0 var(--s-4); }
 .prose p:last-child { margin-bottom: 0; }
@@ -45,11 +44,10 @@
   border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: rotate(-45deg);
 }
 .accordion details[open] summary::before { transform: rotate(45deg); }
-.accordion summary span { margin-left: auto; font-size: var(--text-sm); color: var(--ink-muted); }
 .accordion summary:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .accordion summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.accordion ul { margin: 0 0 var(--s-3); padding-left: calc(var(--s-6) + 2px); columns: 2; column-gap: var(--s-6); font-size: var(--text-sm); }
-.accordion li { break-inside: avoid; padding: 2px 0; }
+.accordion ul { margin: 0 0 var(--s-3); padding-left: calc(var(--s-6) + 2px); font-size: var(--text-sm); }
+.accordion li { padding: 2px 0; }
 
 /* Formulas, set as plain math on a light plate. */
 .nowrap { white-space: nowrap; }
@@ -84,10 +82,33 @@
 .limits dt { font-weight: 600; }
 .limits dd { margin: 0; }
 
-.source { margin: var(--s-7) 0 0; font-size: var(--text-sm); color: var(--ink-muted); }
-.source a:last-child { margin-left: var(--s-2); color: var(--ink); font-weight: 600; }
+
+/* Fact lists: term over its value, ruled like the limits list. */
+.facts { margin: 0; }
+.facts > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.facts > div:first-child { border-top: 1px solid var(--line); }
+/* Beside a column of text, the list starts level with the text rather than on a rule above it. */
+.visual > .facts > div:first-child { border-top: 0; padding-top: 0; }
+.facts dt { font-weight: 600; }
+.facts dd { margin: 0; }
+.prose .modelTable { margin: 0; }
+/* Methods under the split, two per row on wide screens. */
+.factsGrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); margin-top: var(--s-6); }
+.factsGrid > div:nth-child(2) { border-top: 1px solid var(--line); }
+
+.modelTable figcaption { margin-bottom: var(--s-3); font-size: var(--text-sm); font-weight: 600; }
+.modelTable table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.modelTable th, .modelTable td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.modelTable thead th { background: var(--plate-grey); color: var(--ink-muted); font-weight: 600; }
+.modelTable th:first-child { text-align: left; white-space: normal; }
+.modelTable tbody th { font-weight: 600; }
+.modelTable .spread { color: var(--ink-muted); }
+.tableNote { margin: var(--s-2) 0 0; font-size: var(--text-sm); color: var(--ink-muted); }
+.usedRow { background: var(--row-alt); }
 
 @media (max-width: 1000px) {
+  .factsGrid { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+  .factsGrid > div:first-child, .factsGrid > div:nth-child(2) { border-top: 0; }
   .split { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
 }
 @media (max-width: 700px) {
@@ -97,14 +118,14 @@
   .scaleBar { flex-direction: column; }
   .scaleBar > div { display: flex; justify-content: space-between; align-items: baseline; flex-basis: auto; }
   .scaleBar span { margin: 0; }
-  .limits > div { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+  .limits > div, .facts > div { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
 }
 @media (max-width: 600px) {
+  .modelTable th, .modelTable td { padding: var(--s-2) var(--s-1); }
   .title { font-size: 2.25rem; }
   .lede { font-size: var(--text-md); }
   .strip > div { padding: var(--s-2) var(--s-3); }
   .strip dd { font-size: var(--text-xl); }
-  .accordion ul { columns: 1; }
   .nowrap { white-space: nowrap; }
 .formula { overflow-x: auto; padding: var(--s-3); }
   /* One row per equation; a label stays inline unless what follows is too wide (the square roots). */

@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { InfoButton } from "../components/InfoButton";
-import { Link } from "react-router-dom";
 import { CompScatter, GapCurve, MovingUp, RoleOutcomes } from "../components/MethodCharts";
 import { loadMethodology } from "../data/load";
 import type { MethodologyFile } from "../data/types";
@@ -8,14 +7,17 @@ import { num, seasonLabel } from "../lib/format";
 import { ROLES } from "../lib/roles";
 import styles from "./MethodologyPage.module.css";
 
-// The model's inputs, grouped the way a scout would think about them. Labels come from the export.
+// The model's inputs, grouped the way a scout would think about them. The page orders groups, and the stats in
+// each, by how much they move projections (weights from the export).
 const GROUPS: { title: string; keys: string[] }[] = [
   { title: "Production", keys: ["porpag", "dporpag", "obpm", "dbpm", "porpag_trend"] },
-  { title: "Shooting", keys: ["ts", "efg", "three_pa_rate", "ft_pct", "ftr", "ortg"] },
-  { title: "Role", keys: ["usg", "min", "mpg", "g", "ast", "to"] },
-  { title: "Rebounding and defense", keys: ["oreb_rate", "dreb_rate", "blk", "stl"] },
-  { title: "Profile", keys: ["exp_num", "inches", "pos_num", "rec"] },
-  { title: "Team and competition", keys: ["team_barthag", "team_adj_o", "team_adj_d", "origin_level", "destination_level"] },
+  { title: "Team and level of competition", keys: ["team_barthag", "team_adj_o", "team_adj_d", "origin_level", "destination_level"] },
+  { title: "Role", keys: ["usg", "min", "mpg", "g"] },
+  { title: "Scoring and shooting", keys: ["ts", "efg", "ortg", "three_pa_rate", "ftr", "ft_pct"] },
+  { title: "Profile", keys: ["inches", "pos_num", "exp_num", "rec"] },
+  { title: "Playmaking", keys: ["ast", "to"] },
+  { title: "Rebounding", keys: ["oreb_rate", "dreb_rate"] },
+  { title: "Defense", keys: ["blk", "stl"] },
 ];
 
 const LIMITS: [string, string][] = [
@@ -31,14 +33,17 @@ function approx(n: number): string {
   return `${(Math.floor(n / step) * step).toLocaleString()}+`;
 }
 
-function Section({ id, title, children, visual }: { id: string; title: string; children: ReactNode; visual?: ReactNode }) {
+function Section({ id, title, children, visual, after, aside }: {
+  id: string; title: string; children: ReactNode; visual?: ReactNode; after?: ReactNode; aside?: ReactNode;
+}) {
   return (
     <section aria-labelledby={id} className={styles.section}>
-      <h2 id={id}>{title}</h2>
+      <div className={styles.head}><h2 id={id}>{title}</h2>{aside}</div>
       <div className={visual ? styles.split : undefined}>
         <div className={styles.prose}>{children}</div>
         {visual && <div className={styles.visual}>{visual}</div>}
       </div>
+      {after}
     </section>
   );
 }
@@ -56,7 +61,11 @@ export function MethodologyPage() {
   if (error) return <><h1 className={styles.title}>How the Model Works</h1><p role="alert">{error}</p></>;
   if (!data) return <div aria-busy="true"><div className="skeleton" style={{ height: 600 }} /></div>;
 
-  const label = new Map(data.features.map((f) => [f.key, f.label]));
+  const byKey = new Map(data.features.map((f) => [f.key, f]));
+  const groups = GROUPS.map((g) => {
+    const stats = g.keys.flatMap((k) => byKey.get(k) ?? []).sort((a, b) => b.weight - a.weight);
+    return { title: g.title, stats, weight: stats.reduce((t, f) => t + f.weight, 0) };
+  }).sort((a, b) => b.weight - a.weight);
   const starterRow = data.roles.find((r) => r.role === 3);
   const starter = starterRow && starterRow.shares[3] + starterRow.shares[4];
 
@@ -74,7 +83,7 @@ export function MethodologyPage() {
         <div><dt>Transfers studied</dt><dd>{approx(data.transfers)}</dd></div>
         <div><dt>Seasons of data</dt><dd>Since {seasonLabel(data.first_season)}</dd></div>
         <div><dt>Stats per player</dt><dd>{data.features.length}</dd></div>
-        <div><dt>Typical miss</dt><dd>±{num(data.typical_miss, 2)} PRPG</dd></div>
+        <div><dt>Typical miss</dt><dd>{num(data.models.lgbm.mae, 2)} PRPG</dd></div>
       </dl>
 
       <Section id="how" title="How Does It Work?" visual={<MovingUp rows={data.moving_up} />}>
@@ -115,15 +124,12 @@ export function MethodologyPage() {
 
       <Section id="inputs" title="What Goes Into It?" visual={
         <div className={styles.accordion}>
-          {GROUPS.map((g) => {
-            const stats = g.keys.filter((k) => label.has(k)).map((k) => label.get(k));
-            return (
-              <details key={g.title}>
-                <summary><b>{g.title}</b><span>{stats.length} stats</span></summary>
-                <ul>{stats.map((s) => <li key={s}>{s}</li>)}</ul>
-              </details>
-            );
-          })}
+          {groups.map((g) => (
+            <details key={g.title}>
+              <summary><b>{g.title}</b></summary>
+              <ul>{g.stats.map((f) => <li key={f.key}>{f.label}</li>)}</ul>
+            </details>
+          ))}
         </div>
       }>
         <p>
@@ -131,8 +137,8 @@ export function MethodologyPage() {
           strong his team and conference were.
         </p>
         <p>
-          Each player page has a "Why the Model Projects This" section that shows which of these pushed his projection up
-          or down, and by how much.
+          The groups are listed by how much they move a projection, most first. Each player page has a "Why the Model
+          Projects This" section that shows which stats pushed his projection up or down, and by how much.
         </p>
       </Section>
 
@@ -166,7 +172,7 @@ export function MethodologyPage() {
             dots are, the more alike the players.
           </p>
           <p>
-            {data.comp_demo.player}'s comps aren't the closest dots here because the other stats count too.
+            Some dots sit closer to {data.comp_demo.player.split(" ").slice(-1)[0]} than his comps do, because height, position and the other stats count too.
           </p>
         </Section>
       )}
@@ -187,19 +193,54 @@ export function MethodologyPage() {
       </Section>
 
       <section aria-labelledby="limits" className={styles.section}>
-        <h2 id="limits">What It Can't Tell You</h2>
+        <div className={styles.head}><h2 id="limits">What It Can't Tell You</h2></div>
         <dl className={styles.limits}>
           {LIMITS.map(([t, d]) => <div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}
           <div><dt>Early-season numbers</dt><dd>A player needs {data.min_games} games in a season to reach the board.</dd></div>
         </dl>
       </section>
 
-      <p className={styles.source}>
-        Stats from <a href="https://barttorvik.com">BartTorvik</a>, through
-        the <a href="https://github.com/andreweatherman/toRvik-data">toRvik-data</a> archive and BartTorvik's own site:{" "}
-        {approx(data.player_seasons)} player seasons since <span className={styles.nowrap}>{seasonLabel(data.first_season)}</span>.{" "}
-        <Link to="/">Back to the board</Link>
-      </p>
+      <Section id="data" title="Where the Data Comes From" visual={
+        <dl className={styles.facts}>
+          <div><dt>Seasons</dt><dd>{seasonLabel(data.first_season)} through {seasonLabel(data.board_season)}</dd></div>
+          <div><dt>Player seasons</dt><dd>{approx(data.player_seasons)}, from {approx(data.players)} players</dd></div>
+          <div><dt>Transfers</dt><dd>{approx(data.transfers)} moves by {approx(data.transfer_players)} players</dd></div>
+          <div><dt>On the board</dt><dd>{approx(data.board_players)} players in {seasonLabel(data.board_season)}</dd></div>
+        </dl>
+      }>
+        <p>
+          Every stat comes from <a href="https://barttorvik.com">BartTorvik</a>: player box score and advanced stats, shot
+          zones, and team ratings. Older seasons come through the{" "}
+          <a href="https://github.com/andreweatherman/toRvik-data">toRvik-data</a> archive, and the latest seasons are pulled
+          from BartTorvik's site directly.
+        </p>
+        <p>
+          A transfer is the same player showing up at a different D1 school one or two seasons later, with stats at both.
+          The board covers every player outside the ACC, Big Ten, Big 12, Big East, Pac-12 and SEC who played at
+          least {data.min_games} games that season.
+        </p>
+      </Section>
+
+      <Section id="tech" title="Model Details"
+        aside={<a className={styles.headLink} href="https://github.com/austindinhh/mid-major-recruiting">View the code on GitHub</a>}
+        visual={
+        <dl className={styles.facts}>
+          <div><dt>Target</dt><dd>PRPG in the first season after a transfer</dd></div>
+          <div><dt>Features</dt><dd>{data.features.length} stats from his last season before the move, plus the strength of his old and new conferences</dd></div>
+          <div><dt>Model</dt><dd>LightGBM gradient-boosted trees (1,000 trees, learning rate 0.02, 15 leaves, 80% row and column sampling)</dd></div>
+          <div><dt>Baselines</dt><dd>No change (PRPG carries over) and ridge regression on the same features</dd></div>
+          <div><dt>Validation</dt><dd>{data.cv_folds}-fold cross-validation grouped by player, so no player appears in both training and testing</dd></div>
+        </dl>
+      } after={
+        <dl className={`${styles.facts} ${styles.factsGrid}`}>
+          <div><dt>Explanations</dt><dd>TreeSHAP values from LightGBM; with the base value, they add up exactly to each projection</dd></div>
+          <div><dt>Box stats</dt><dd>One LightGBM model per stat; points-per-game MAE {num(data.box.ppg.lgbm_mae, 1)} vs {num(data.box.ppg.naive_mae, 1)} for no change</dd></div>
+          <div><dt>Comps</dt><dd>Weighted Euclidean distance on min-max scaled stats, over completed moves into a high-major</dd></div>
+          <div><dt>Shot zones</dt><dd>One-sample test for a proportion against the position average, colored at |z| ≥ 1 (one standard error, a deliberately loose bar for a scouting cue)</dd></div>
+        </dl>
+      }>
+        <ModelTable models={data.models} folds={data.cv_folds} />
+      </Section>
     </>
   );
 }
@@ -276,5 +317,33 @@ function Root({ children }: { children: ReactNode }) {
       </svg>
       <span className={styles.radicand}>{children}</span>
     </span>
+  );
+}
+
+function ModelTable({ models, folds }: { models: MethodologyFile["models"]; folds: number }) {
+  const rows: [string, keyof MethodologyFile["models"]][] = [
+    ["No change", "naive"], ["Ridge regression", "ridge"], ["LightGBM (used on the board)", "lgbm"],
+  ];
+  return (
+    <figure className={styles.modelTable}>
+      <figcaption>Cross-validated error on past transfers, in PRPG ({folds} folds, grouped by player)</figcaption>
+      <table>
+        <thead><tr><th scope="col">Model</th><th scope="col">MAE</th><th scope="col">Spread</th><th scope="col">RMSE</th></tr></thead>
+        <tbody>
+          {rows.map(([name, k]) => (
+            <tr key={k} className={k === "lgbm" ? styles.usedRow : undefined}>
+              <th scope="row">{name}</th>
+              <td>{num(models[k].mae, 3)}</td>
+              <td className={styles.spread}>{models[k].mae_std != null ? `± ${num(models[k].mae_std, 3)}` : ""}</td>
+              <td>{num(models[k].rmse, 3)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className={styles.tableNote}>
+        Spread is the standard deviation across folds. LightGBM beats ridge by {num(models.ridge.mae - models.lgbm.mae, 3)},
+        less than that spread; it's used because TreeSHAP gives exact per-player explanations.
+      </p>
+    </figure>
   );
 }
