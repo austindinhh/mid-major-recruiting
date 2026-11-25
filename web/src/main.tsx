@@ -5,6 +5,7 @@ import { App } from "./App";
 import { BoardPage } from "./routes/BoardPage";
 import { PlayerPage } from "./routes/PlayerPage";
 import { MethodologyPage } from "./routes/MethodologyPage";
+import { NotFoundPage } from "./routes/NotFoundPage";
 import "./fonts";
 import "./styles/tokens.css";
 import "./styles/global.css";
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")!).render(
           <Route index element={<BoardPage />} />
           <Route path="player/:id" element={<PlayerPage />} />
           <Route path="methodology" element={<MethodologyPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
