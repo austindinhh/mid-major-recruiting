@@ -94,7 +94,7 @@ The data and models are committed, so the site only needs the export step:
 
 ```bash
 pip install -r requirements-site.txt
-python scripts/export_site_data.py   # writes web/public/data, about 200 MB, takes about 15 minutes
+python scripts/export_site_data.py   # writes web/public/data, about 145 MB, takes about 2.5 minutes
 
 cd web
 npm ci

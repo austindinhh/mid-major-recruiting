@@ -130,33 +130,37 @@ def validate_models() -> bool:
 
 
 def validate_boards() -> bool:
+    import json
     import pandas as pd
-    from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES
+    from src.config import APP_CONFIG_PATH, DATA_DIR, HIGH_MAJOR_CONFERENCES, LAST_SEASON
 
     print("Scouting board")
     ok = True
 
-    transfers_path = DATA_DIR / "board_transfers.parquet"
-    ok &= _check("board_transfers.parquet exists", transfers_path.exists())
-    if not transfers_path.exists():
+    ok &= _check("app_config.json exists", APP_CONFIG_PATH.exists())
+    if APP_CONFIG_PATH.exists():
+        with open(APP_CONFIG_PATH) as f:
+            seasons = json.load(f)["available_seasons"]
+        missing = [s for s in seasons if not (DATA_DIR / f"players_{s}.parquet").exists()]
+        ok &= _check(f"player file for every available season (missing {missing})", not missing)
+
+    path = DATA_DIR / f"players_{LAST_SEASON}.parquet"
+    ok &= _check(f"{path.name} exists", path.exists())
+    if not path.exists():
         return ok
 
-    transfers = pd.read_parquet(transfers_path)
+    players = pd.read_parquet(path)
 
-    ok &= _check("transfers has projected_porpag", "projected_porpag" in transfers.columns)
-    ok &= _check("transfers >= 100 players",       len(transfers) >= 100)
+    ok &= _check("players has projected_porpag", "projected_porpag" in players.columns)
+    ok &= _check("players >= 100 rows",          len(players) >= 100)
 
-    if "conf" in transfers.columns:
-        hm_in_trans = transfers["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
-        ok &= _check(f"no high-major players in transfers (found {hm_in_trans})", hm_in_trans == 0)
+    hm = players["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
+    ok &= _check(f"no high-major players (found {hm})", hm == 0)
 
-    sorted_ok = (transfers["projected_porpag"].diff().dropna() <= 0).all()
-    ok &= _check("transfers board sorted by projected_porpag desc", sorted_ok)
-
-    top1 = transfers.iloc[0]
-    print(f"\n  Top transfer: {top1['player']} ({top1['team']}, {top1['conf']}) "
+    top1 = players.loc[players["projected_porpag"].idxmax()]
+    print(f"\n  Top projection: {top1['player']} ({top1['team']}, {top1['conf']}) "
           f"projected={top1['projected_porpag']:.2f}")
-    print(f"  Transfers board: {len(transfers)} players")
+    print(f"  {LAST_SEASON} players: {len(players)}")
     return ok
 
 STEPS = {

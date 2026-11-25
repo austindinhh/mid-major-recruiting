@@ -1,5 +1,6 @@
 """
-Generates the transfer board (ranked by projected PORPAG) and per-season player files.
+Projects every player-season and writes the per-season player files, app_config.json and
+out-of-fold predictions for past transfers.
 
 Run: python scripts/generate_board.py
 """
@@ -11,16 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import json
 import pandas as pd
-from src.config import DATA_DIR, FIRST_SEASON, HIGH_MAJOR_CONFERENCES, LAST_SEASON
+from src.config import APP_CONFIG_PATH, DATA_DIR, HIGH_MAJOR_CONFERENCES, HIST_PREDS_PATH, LAST_SEASON
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import build_player_features
 from src.model.predict import project_players, get_target_level, project_box_stats
-
-TRANSFERS_PATH    = DATA_DIR / "board_transfers.parquet"
-APP_CONFIG_PATH   = DATA_DIR / "app_config.json"
-HIST_PREDS_PATH   = DATA_DIR / "historical_predictions.parquet"
-
-DISPLAY_COLS = ["player", "pos", "team", "conf", "porpag", "projected_porpag"]
 
 
 def _save_players(players: pd.DataFrame, season: int) -> int:
@@ -38,7 +33,7 @@ def generate_boards(
     season: int = LAST_SEASON,
     players: pd.DataFrame | None = None,
     teams: pd.DataFrame | None = None,
-) -> pd.DataFrame:
+) -> None:
     if players is None or teams is None:
         ps = fetch_player_seasons()
         teams = fetch_teams()
@@ -58,34 +53,8 @@ def generate_boards(
 
     projected = project_box_stats(projected, target_level)
 
-    save_cols = [
-        "player", "pos", "team", "conf", "year",
-        "porpag", "dporpag", "projected_porpag",
-        "ppg", "rpg", "apg", "spg", "bpg",
-        "projected_ppg", "projected_rpg", "projected_apg", "projected_spg", "projected_bpg",
-        "usg", "ortg", "ts", "ast", "to", "blk", "stl",
-        "origin_level", "destination_level",
-        "rec",
-        "exp", "seasons_played", "inches", "id",
-        "conf_barthag", "oreb_rate", "dreb_rate", "ftr",
-        "rim_a", "rim_m", "rim_pct", "mid_a", "mid_m", "mid_pct",
-        "three_a", "three_m", "three_pct", "fga",
-        "porpag_trend", "pos_num", "exp_num", "obpm", "dbpm",
-    ]
-    save_cols = [c for c in save_cols if c in projected.columns]
-
-    transfers = (
-        projected[save_cols]
-        .sort_values("projected_porpag", ascending=False)
-        .reset_index(drop=True)
-    )
-
-    if season == LAST_SEASON:
-        transfers.to_parquet(TRANSFERS_PATH, index=False)
-
     n_rows = _save_players(projected, season)
-    print(f"[board] {season}: {len(transfers)} transfers | {n_rows} player rows")
-    return transfers
+    print(f"[board] {season}: {n_rows} player rows")
 
 
 def generate_historical_predictions() -> None:

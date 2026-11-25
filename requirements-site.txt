@@ -7,4 +7,3 @@ scikit-learn==1.9.0
 lightgbm==4.6.0
 shap==0.52.0
 joblib==1.5.3
-requests==2.34.2   # imported by src/data/portal.py on the export's import path

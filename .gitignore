@@ -15,16 +15,10 @@ build/
 venv/
 env/
 
-# Raw pipeline outputs — committed so Streamlit Cloud can serve without re-running the pipeline
-data/*.csv
-
 # Jupyter / notebooks
 notebooks/
 .ipynb_checkpoints/
 *.ipynb
-
-# Streamlit
-.streamlit/secrets.toml
 
 # IDE
 .vscode/

@@ -8,7 +8,6 @@ PLAYER_SEASONS_PATH = DATA_DIR / "player_seasons.parquet"
 TRANSFERS_PATH = DATA_DIR / "transfers.parquet"
 TEAMS_PATH = DATA_DIR / "teams.parquet"
 TRAINING_PAIRS_PATH = DATA_DIR / "training_pairs.parquet"
-WEIGHT_DATA_PATH    = DATA_DIR / "weight_data.parquet"
 APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 HIST_PREDS_PATH = DATA_DIR / "historical_predictions.parquet"
 
