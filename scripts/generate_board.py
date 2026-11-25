@@ -1,8 +1,5 @@
 """
-Generates scouting boards and per-season player files for the app.
-
-  transfers — ranked by raw projected PORPAG
-  gems      — ranked by projected PORPAG x obscurity
+Generates the transfer board (ranked by projected PORPAG) and per-season player files.
 
 Run: python scripts/generate_board.py
 """
@@ -17,9 +14,8 @@ import pandas as pd
 from src.config import DATA_DIR, FIRST_SEASON, HIGH_MAJOR_CONFERENCES, LAST_SEASON
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import build_player_features
-from src.model.predict import project_players, add_gem_score, get_target_level, project_box_stats
+from src.model.predict import project_players, get_target_level, project_box_stats
 
-GEMS_PATH         = DATA_DIR / "board_gems.parquet"
 TRANSFERS_PATH    = DATA_DIR / "board_transfers.parquet"
 APP_CONFIG_PATH   = DATA_DIR / "app_config.json"
 HIST_PREDS_PATH   = DATA_DIR / "historical_predictions.parquet"
@@ -42,7 +38,7 @@ def generate_boards(
     season: int = LAST_SEASON,
     players: pd.DataFrame | None = None,
     teams: pd.DataFrame | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> pd.DataFrame:
     if players is None or teams is None:
         ps = fetch_player_seasons()
         teams = fetch_teams()
@@ -52,7 +48,6 @@ def generate_boards(
     print(f"[board] {season}: projecting to high-major level {target_level:.4f}")
 
     projected = project_players(players, teams, season=season, destination_level=target_level)
-    projected = add_gem_score(projected)
 
     # Remove players who have exhausted their eligibility (5+ seasons played).
     # Seniors with fewer than 5 seasons are still eligible as grad transfers.
@@ -70,7 +65,7 @@ def generate_boards(
         "projected_ppg", "projected_rpg", "projected_apg", "projected_spg", "projected_bpg",
         "usg", "ortg", "ts", "ast", "to", "blk", "stl",
         "origin_level", "destination_level",
-        "rec", "obscurity", "gem_score",
+        "rec",
         "exp", "seasons_played", "inches", "id",
         "conf_barthag", "oreb_rate", "dreb_rate", "ftr",
         "rim_a", "rim_m", "rim_pct", "mid_a", "mid_m", "mid_pct",
@@ -79,11 +74,6 @@ def generate_boards(
     ]
     save_cols = [c for c in save_cols if c in projected.columns]
 
-    gems = (
-        projected[projected["projected_porpag"] > 0][save_cols]
-        .sort_values("gem_score", ascending=False)
-        .reset_index(drop=True)
-    )
     transfers = (
         projected[save_cols]
         .sort_values("projected_porpag", ascending=False)
@@ -91,12 +81,11 @@ def generate_boards(
     )
 
     if season == LAST_SEASON:
-        gems.to_parquet(GEMS_PATH, index=False)
         transfers.to_parquet(TRANSFERS_PATH, index=False)
 
     n_rows = _save_players(projected, season)
-    print(f"[board] {season}: {len(gems)} gems | {len(transfers)} transfers | {n_rows} player rows")
-    return gems, transfers
+    print(f"[board] {season}: {len(transfers)} transfers | {n_rows} player rows")
+    return transfers
 
 
 def generate_historical_predictions() -> None:

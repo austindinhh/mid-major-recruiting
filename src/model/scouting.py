@@ -1,5 +1,5 @@
 """
-Per-player scouting math shared by the Streamlit app and the static-site export:
+Per-player scouting math used by the static-site export:
 projection, feature contributions, comparable transfers and shot zones.
 """
 
@@ -13,7 +13,6 @@ from ..config import (
     MID_MAJOR_CONFERENCES,
 )
 from ..features.build import FEATURE_COLS
-from .predict import add_gem_score
 
 FEATURE_LABELS = {
     "porpag":           "Current PRPG",
@@ -81,7 +80,7 @@ def project(players: pd.DataFrame, dest_level: float, model) -> pd.DataFrame:
     df["destination_level"] = dest_level
     feat_cols = [c for c in FEATURE_COLS if c in df.columns]
     df["projected_porpag"] = model.predict(df[feat_cols])
-    return add_gem_score(df)
+    return df
 
 
 def contributions(players: pd.DataFrame, model) -> tuple[pd.DataFrame, pd.Series]:
@@ -92,16 +91,6 @@ def contributions(players: pd.DataFrame, model) -> tuple[pd.DataFrame, pd.Series
     contribs = pd.DataFrame(raw[:, :-1], index=players.index, columns=feat_cols)
     bias = pd.Series(raw[:, -1], index=players.index)
     return contribs, bias
-
-
-def top_contributions(contrib_row: pd.Series, n: int = 10) -> pd.Series:
-    # Origin PRPG dominates by design; showing what else moves the projection is more useful.
-    return (
-        contrib_row
-        .drop(labels=["porpag"], errors="ignore")
-        .sort_values(key=abs, ascending=False)
-        .head(n)
-    )
 
 
 def comp_pool(training_pairs: pd.DataFrame, current_season: int) -> pd.DataFrame:

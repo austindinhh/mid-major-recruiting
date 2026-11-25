@@ -1,6 +1,0 @@
-[theme]
-primaryColor      = "#FF5F05"   # Illinois orange — buttons, sliders, active states
-backgroundColor   = "#FFFFFF"   # white main content area
-secondaryBackgroundColor = "#F0F4FF"  # light blue tint — widget backgrounds, code blocks
-textColor         = "#13294B"   # Illinois blue — body text on white
-font              = "sans serif"

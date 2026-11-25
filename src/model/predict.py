@@ -4,7 +4,7 @@ Inference: project current-season non-high-major players to a target competition
 
 import pandas as pd
 
-from ..config import HIGH_MAJOR_CONFERENCES, MID_MAJOR_CONFERENCES, LAST_SEASON
+from ..config import HIGH_MAJOR_CONFERENCES, LAST_SEASON
 from ..features.build import FEATURE_COLS
 from .train import load_lgbm, load_stat_models
 
@@ -65,29 +65,4 @@ def project_box_stats(players: pd.DataFrame, destination_level: float) -> pd.Dat
         if not available:
             continue
         players[f"projected_{stat}"] = model.predict(players[available])
-    return players
-
-
-def add_gem_score(players: pd.DataFrame) -> pd.DataFrame:
-    """
-    Adds obscurity (0–1) and gem_score = projected_porpag × obscurity.
-    Obscurity is high when a player is unrecruited AND in an unscouted conference.
-    """
-    # Recruit obscurity: NaN (unranked) → 1.0, rec=100 → 0.0
-    rec_norm = players["rec"].fillna(0).clip(0, 100) / 100
-    recruit_obs = 1 - rec_norm
-
-    def _conf_obs(conf: str) -> float:
-        if conf in HIGH_MAJOR_CONFERENCES:
-            return 0.2
-        if conf in MID_MAJOR_CONFERENCES:
-            return 0.6
-        return 1.0
-
-    conf_obs = players["conf"].map(_conf_obs)
-
-    players["obscurity"] = (0.5 * recruit_obs + 0.5 * conf_obs).round(3)
-    players["gem_score"] = (
-        players["projected_porpag"].clip(lower=0) * players["obscurity"]
-    ).round(3)
     return players

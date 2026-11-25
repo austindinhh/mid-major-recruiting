@@ -133,44 +133,31 @@ def validate_boards() -> bool:
     import pandas as pd
     from src.config import DATA_DIR, HIGH_MAJOR_CONFERENCES
 
-    print("Scouting boards")
+    print("Scouting board")
     ok = True
 
-    gems_path      = DATA_DIR / "board_gems.parquet"
     transfers_path = DATA_DIR / "board_transfers.parquet"
-
-    ok &= _check("board_gems.parquet exists",      gems_path.exists())
     ok &= _check("board_transfers.parquet exists", transfers_path.exists())
-    if not gems_path.exists() or not transfers_path.exists():
+    if not transfers_path.exists():
         return ok
 
-    gems      = pd.read_parquet(gems_path)
     transfers = pd.read_parquet(transfers_path)
 
-    ok &= _check("gems has projected_porpag",  "projected_porpag" in gems.columns)
-    ok &= _check("gems has gem_score",         "gem_score" in gems.columns)
-    ok &= _check("gems >= 100 players",        len(gems) >= 100)
-    ok &= _check("transfers >= 100 players",   len(transfers) >= 100)
+    ok &= _check("transfers has projected_porpag", "projected_porpag" in transfers.columns)
+    ok &= _check("transfers >= 100 players",       len(transfers) >= 100)
 
-    if "conf" in gems.columns:
-        hm_in_gems = gems["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
-        ok &= _check(f"no high-major players in gems (found {hm_in_gems})", hm_in_gems == 0)
     if "conf" in transfers.columns:
         hm_in_trans = transfers["conf"].isin(HIGH_MAJOR_CONFERENCES).sum()
         ok &= _check(f"no high-major players in transfers (found {hm_in_trans})", hm_in_trans == 0)
 
-    neg_gems = (gems["gem_score"] < 0).sum()
-    ok &= _check(f"all gem_scores non-negative (found {neg_gems} negative)", neg_gems == 0)
-
     sorted_ok = (transfers["projected_porpag"].diff().dropna() <= 0).all()
     ok &= _check("transfers board sorted by projected_porpag desc", sorted_ok)
 
-    top1 = gems.iloc[0]
-    print(f"\n  Top gem: {top1['player']} ({top1['team']}, {top1['conf']}) "
-          f"projected={top1['projected_porpag']:.2f} gem_score={top1['gem_score']:.3f}")
-    print(f"  Gems board: {len(gems)} players | Transfers board: {len(transfers)} players")
+    top1 = transfers.iloc[0]
+    print(f"\n  Top transfer: {top1['player']} ({top1['team']}, {top1['conf']}) "
+          f"projected={top1['projected_porpag']:.2f}")
+    print(f"  Transfers board: {len(transfers)} players")
     return ok
-
 
 STEPS = {
     "data":     validate_data,
