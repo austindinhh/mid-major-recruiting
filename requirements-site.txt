@@ -1,9 +1,0 @@
-# What CI needs to run scripts/export_site_data.py. Pinned to the versions that trained the pickled models in
-# models/, since scikit-learn and LightGBM pickles may not load under other versions. Bump these after retraining.
-pandas==3.0.3
-numpy==2.4.6
-pyarrow==24.0.0
-scikit-learn==1.9.0
-lightgbm==4.6.0
-shap==0.52.0
-joblib==1.5.3

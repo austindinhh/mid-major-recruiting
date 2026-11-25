@@ -93,7 +93,7 @@ web/                the site: Vite, React, TypeScript
 The data and models are committed, so the site only needs the export step:
 
 ```bash
-pip install -r requirements-site.txt
+pip install -r requirements.txt
 python scripts/export_site_data.py   # writes web/public/data, about 145 MB, takes about 2.5 minutes
 
 cd web
@@ -104,12 +104,11 @@ npm run dev                          # http://localhost:5173/mid-major-recruitin
 ### Refresh the Data
 
 ```bash
-pip install -r requirements.txt
 python scripts/run_pipeline.py       # fetch BartTorvik data, build features, train
 python scripts/generate_board.py     # saved predictions for past transfers
 ```
 
-Commit `data/` and `models/` and push to `main`. The deploy workflow runs the export, builds the site and publishes it to GitHub Pages. After retraining, set the versions in `requirements-site.txt` to the ones that trained the models, since the saved models may not load under other versions.
+Commit `data/` and `models/` and push to `main`. The deploy workflow runs the export, builds the site and publishes it to GitHub Pages. `requirements.txt` pins the package versions that trained the saved models, since the models may not load under other versions. If you upgrade a package, retrain and commit the new models in the same push.
 
 ## Limitations
 

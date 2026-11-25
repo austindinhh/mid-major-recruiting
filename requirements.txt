@@ -1,7 +1,10 @@
-pandas>=2.0
-numpy>=1.26
-requests>=2.31
-scikit-learn>=1.4
-lightgbm>=4.3
-shap>=0.45
-pyarrow>=15.0        # parquet backend for pandas
+# Pinned to the versions that trained the pickled models in models/, since scikit-learn and LightGBM pickles may
+# not load under other versions. Upgrading any of these means retraining before the next push.
+pandas==3.0.3
+numpy==2.4.6
+pyarrow==24.0.0
+scikit-learn==1.9.0
+lightgbm==4.6.0
+shap==0.52.0
+joblib==1.5.3
+requests==2.34.2

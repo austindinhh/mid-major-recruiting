@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: requirements-site.txt
+          cache-dependency-path: requirements.txt
 
       # web/public/data is not committed; it is rebuilt from the parquet files and models in the repo. The export
       # only changes when its inputs do, so a push that leaves them alone reuses the last export.
@@ -33,10 +33,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: web/public/data
-          key: site-data-${{ hashFiles('data/**', 'models/**', 'src/**/*.py', 'scripts/export_site_data.py', 'requirements-site.txt') }}
+          key: site-data-${{ hashFiles('data/**', 'models/**', 'src/**/*.py', 'scripts/export_site_data.py', 'requirements.txt') }}
 
       - if: steps.site-data.outputs.cache-hit != 'true'
-        run: pip install -r requirements-site.txt
+        run: pip install -r requirements.txt
       - if: steps.site-data.outputs.cache-hit != 'true'
         run: python scripts/export_site_data.py
 
