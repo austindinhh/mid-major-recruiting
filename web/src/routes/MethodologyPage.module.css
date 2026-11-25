@@ -1,0 +1,138 @@
+/* Full content width: each section puts its explanation on the left and a visual on the right. */
+.title { margin: 0 0 var(--s-3); font-family: var(--font-plate); font-weight: 800; font-size: var(--text-3xl); line-height: 1; letter-spacing: -0.01em; }
+.lede { max-width: 52rem; margin: 0 0 var(--s-5); font-size: var(--text-lg); line-height: 1.45; }
+
+/* Key numbers in the site's stat-strip style. */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; background: var(--strip-bg); }
+.strip > div { padding: var(--s-3) var(--s-5); border-left: 2px solid var(--strip-divider); }
+.strip > div:first-child { border-left: 0; }
+.strip dt { font-size: var(--text-xs); color: var(--ink-muted); }
+.strip dd { margin: 0; font-family: var(--font-plate); font-weight: 700; font-size: var(--text-2xl); line-height: 1.15; }
+
+.section { margin-top: var(--s-7); }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-1) var(--s-4); margin: 0 0 var(--s-4); padding-bottom: var(--s-2); border-bottom: var(--section-rule) solid var(--rule); }
+.head h2 { margin: 0; font-family: var(--font-plate); font-weight: 700; font-size: var(--text-xl); line-height: 1.2; }
+.headLink { margin-left: auto; padding-block: var(--s-1); font-size: var(--text-sm); font-weight: 600; }
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--s-7); align-items: start; }
+.prose p { margin: 0 0 var(--s-4); }
+.prose p:last-child { margin-bottom: 0; }
+.visual { min-width: 0; }
+.visual figure { margin: 0; }
+.visual > :not(:first-child) { margin-top: var(--s-6); }
+.visual figcaption { margin-bottom: var(--s-3); font-size: var(--text-sm); font-weight: 600; }
+
+/* PRPG scale: sequential navy steps. */
+.band0 { background: var(--seq-0); color: var(--on-seq-0); }
+.band1 { background: var(--seq-1); color: var(--on-seq-1); }
+.band2 { background: var(--seq-2); color: var(--on-seq-2); }
+.band3 { background: var(--seq-3); color: var(--on-seq-3); }
+.band4 { background: var(--seq-4); color: var(--on-seq-4); }
+.scaleBar { display: flex; gap: 2px; }
+.scaleBar > div { flex-basis: 0; min-width: 0; padding: var(--s-3); }
+.scaleBar b { display: block; font-size: var(--text-sm); line-height: 1.2; }
+.scaleBar span { display: block; margin-top: 2px; font-size: var(--text-xs); font-weight: 600; }
+
+/* Inputs: one expandable row per group, stats one per line inside. */
+.accordion { border-top: 1px solid var(--line); }
+.accordion details { border-bottom: 1px solid var(--line); }
+.accordion summary {
+  display: flex; align-items: baseline; gap: var(--s-3); padding: var(--s-3) var(--s-1); cursor: pointer; list-style: none;
+}
+.accordion summary::-webkit-details-marker { display: none; }
+.accordion summary::before {
+  content: ""; align-self: center; width: 8px; height: 8px; margin-right: var(--s-1);
+  border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: rotate(-45deg);
+}
+.accordion details[open] summary::before { transform: rotate(45deg); }
+.accordion summary:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.accordion summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.accordion ul { margin: 0 0 var(--s-3); padding-left: calc(var(--s-6) + 2px); font-size: var(--text-sm); }
+.accordion li { padding: 2px 0; }
+
+/* Formulas, set as plain math on a light plate. */
+.nowrap { white-space: nowrap; }
+.formula { overflow-x: auto; padding: var(--s-4) var(--s-5); background: var(--strip-bg); }
+/* Each formula's rows share one grid: labels start together, the "=" signs line up, and each formula follows its "=". */
+.eqs {
+  display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); align-items: center; gap: var(--s-4) var(--s-2);
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Times New Roman", serif; font-size: 1.1rem;
+}
+.math { display: contents; }
+.lhs { white-space: nowrap; }
+.radicand { display: inline-block; padding: var(--s-1) var(--s-2) 0 var(--s-1); border-top: 2px solid var(--ink); }
+.math ol { list-style: none; margin: 0; padding: 0; }
+/* A stacked fraction; the rule spans the wider of numerator and denominator. */
+.fraction { display: inline-grid; text-align: center; line-height: 1.25; }
+.fraction > span + span { border-top: 1.5px solid var(--ink); padding-top: 3px; margin-top: 3px; }
+/* A drawn square root, pinned to the height of what it covers; the bar runs over the top. */
+.root { position: relative; justify-self: start; padding-left: 22px; }
+.radical { position: absolute; left: 0; top: 0; width: 22px; height: 100%; overflow: visible; }
+.radical path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.math li { display: grid; grid-template-columns: 1rem 3.25rem auto; }
+.op { color: var(--ink-muted); }
+.w { text-align: right; padding-right: var(--s-2); }
+.formulaHead { display: flex; align-items: center; gap: var(--s-1); }
+.gapScale { margin-top: var(--s-5); padding: var(--s-3) var(--s-3) var(--s-1); background: var(--bg); }
+.rootRow { display: inline-flex; align-items: center; gap: var(--s-1); }
+
+/* Limits: a ruled list, term on the left. */
+.limits { margin: 0; }
+.limits > div { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--s-4); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.limits > div:first-child { padding-top: 0; }
+.limits dt { font-weight: 600; }
+.limits dd { margin: 0; }
+
+
+/* Fact lists: term over its value, ruled like the limits list. */
+.facts { margin: 0; }
+.facts > div { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); }
+.facts > div:first-child { border-top: 1px solid var(--line); }
+/* Beside a column of text, the list starts level with the text rather than on a rule above it. */
+.visual > .facts > div:first-child { border-top: 0; padding-top: 0; }
+.facts dt { font-weight: 600; }
+.facts dd { margin: 0; }
+.prose .modelTable { margin: 0; }
+/* Methods under the split, two per row on wide screens. */
+.factsGrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: var(--s-7); margin-top: var(--s-6); }
+.factsGrid > div:nth-child(2) { border-top: 1px solid var(--line); }
+
+.modelTable figcaption { margin-bottom: var(--s-3); font-size: var(--text-sm); font-weight: 600; }
+.modelTable table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.modelTable th, .modelTable td { padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.modelTable thead th { background: var(--plate-grey); color: var(--ink-muted); font-weight: 600; }
+.modelTable th:first-child { text-align: left; white-space: normal; }
+.modelTable tbody th { font-weight: 600; }
+.modelTable .spread { color: var(--ink-muted); }
+.tableNote { margin: var(--s-2) 0 0; font-size: var(--text-sm); color: var(--ink-muted); }
+.usedRow { background: var(--row-alt); }
+
+@media (max-width: 1000px) {
+  .factsGrid { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+  .factsGrid > div:first-child, .factsGrid > div:nth-child(2) { border-top: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+}
+@media (max-width: 700px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip > div:nth-child(3) { border-left: 0; }
+  .strip > div:nth-child(n + 3) { border-top: 2px solid var(--strip-divider); }
+  .scaleBar { flex-direction: column; }
+  .scaleBar > div { display: flex; justify-content: space-between; align-items: baseline; flex-basis: auto; }
+  .scaleBar span { margin: 0; }
+  .limits > div, .facts > div { grid-template-columns: minmax(0, 1fr); gap: var(--s-1); }
+}
+@media (max-width: 600px) {
+  .modelTable th, .modelTable td { padding: var(--s-2) var(--s-1); }
+  .title { font-size: 2.25rem; }
+  .lede { font-size: var(--text-md); }
+  .strip > div { padding: var(--s-2) var(--s-3); }
+  .strip dd { font-size: var(--text-xl); }
+  .nowrap { white-space: nowrap; }
+.formula { overflow-x: auto; padding: var(--s-3); }
+  /* One row per equation; a label stays inline unless what follows is too wide (the square roots). */
+  .eqs { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); font-size: 0.95rem; }
+  /* Short rows keep three columns so wrapped text stays in its own column; the square roots drop below their label. */
+  .math { display: grid; grid-template-columns: max-content max-content minmax(0, 1fr); align-items: center; }
+  .math:has(.root) { display: block; }
+  .lhs, .eq { margin-right: var(--s-2); }
+  .math .root { display: inline-block; vertical-align: middle; }
+}

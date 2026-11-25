@@ -1,0 +1,117 @@
+/* Design tokens for the scouting site. Light is the default; dark is its own set of steps.
+   Fonts are registered in src/fonts.ts. */
+
+
+:root {
+  /* Brand. Solid orange appears twice only: the Block I mark and the projection plate. */
+  --illinois-navy: #13294B;
+  --illinois-orange: #FF5F05;
+
+  /* Surfaces */
+  --bg: #FFFFFF;
+  --plate-grey: #F3F4F6;
+  --line: #E6EAF0;
+  --shell: var(--illinois-navy);
+  --shell-control: #1F3B66;
+  --shell-control-border: #3A5A8C;
+  --shell-control-hover: #5577AD;
+  --shell-edge: var(--shell);
+  --name-plate: var(--illinois-navy);
+  --on-name-plate: #FFFFFF;
+  --team-plate: var(--bg);
+  --team-plate-stacked: var(--strip-bg);
+  --on-team-plate: var(--ink);
+  --on-team-plate-muted: var(--ink-muted);
+  --on-name-plate-muted: #C3CEE0;
+  --strip-bg: #EFF0F2;
+  --strip-divider: #FFFFFF;
+  --row-alt: #EEF2F8;
+  --row-open: #EEF0F3;
+  --projection-plate: var(--illinois-orange);
+  --on-projection: var(--illinois-navy);
+
+  /* Text */
+  --ink: #13294B;
+  --ink-muted: #5B6676;
+  --on-shell: #FFFFFF;
+  --on-shell-muted: #C9D4E6;
+  --rule: var(--illinois-navy);
+
+  /* Shot zones vs the D1 average: blue better, grey near, orange worse. Solid orange is reserved for the projection plate. */
+  --zone-better: #8AABDC;
+  --zone-near: #EEF0F3;
+  /* Sequential navy ramp, low to high, for scales and parts-of-a-whole bars. */
+  --seq-0: #E3E9F2; --seq-1: #C3D0E4; --seq-2: #93AACF; --seq-3: #5375A8; --seq-4: #13294B;
+  --on-seq-0: #13294B; --on-seq-1: #13294B; --on-seq-2: #13294B; --on-seq-3: #FFFFFF; --on-seq-4: #FFFFFF;
+  --zone-worse: #F3A46E;
+  --bar-pos: var(--illinois-navy);
+  --bar-neg: #7F93B5;
+  --court-line: var(--illinois-navy);
+  --court-floor: #FFFFFF;
+
+  --focus: #3D6FB6;
+  /* Interactive control states: slider fill and handles, pressed toggles, checkboxes. */
+  --control: #13294B;
+  --on-control: #FFFFFF;
+  --control-track: #D3DAE5;
+  --backdrop: rgb(11 28 54 / 0.35);
+
+  /* Type */
+  --font-body: "Barlow", system-ui, sans-serif;
+  --font-plate: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.44rem;
+  --text-2xl: 1.728rem;
+  --text-3xl: 2.75rem;
+  --text-plate: 4rem;
+
+  /* Space (4px base) */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --content-max: 1280px;
+  --section-rule: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1A2D;
+    --plate-grey: #1C2230;
+    --line: #23344F;
+    --shell: #0B1730;
+    --name-plate: #1B3762;
+    --strip-bg: #222833;
+    --team-plate: #E6EBF3;
+    --team-plate-stacked: #E6EBF3;
+    --on-team-plate: #13294B;
+    --on-team-plate-muted: #4A5566;
+    --strip-divider: #0E1A2D;
+    --shell-edge: #2A3D5C;
+    --row-alt: #1B2C48;
+    --row-open: #1C2739;
+    --ink: #E6EBF3;
+    --ink-muted: #A3B0C4;
+    --rule: #6F8BB8;
+    --zone-better: #3F68A8;
+    --zone-near: #1C2739;
+    --seq-0: #1E2B40; --seq-1: #2B4268; --seq-2: #44659A; --seq-3: #7C97C4; --seq-4: #D3DEEE;
+    --on-seq-0: #E6EBF3; --on-seq-1: #E6EBF3; --on-seq-2: #FFFFFF; --on-seq-3: #0E1A2D; --on-seq-4: #0E1A2D;
+    --zone-worse: #A4521C;
+    --bar-pos: #C9D6EA;
+    --bar-neg: #5C7397;
+    --court-line: #8FA6CB;
+    --court-floor: #0E1A2D;
+    --focus: #8FB4EA;
+    --control: #C9D6EA;
+    --on-control: #0E1A2D;
+    --control-track: #3A4D6B;
+    --backdrop: rgb(0 0 0 / 0.6);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1A2D; --plate-grey: #1C2230; --line: #23344F; --shell: #0B1730; --name-plate: #1B3762; --strip-bg: #222833; --team-plate: #E6EBF3; --team-plate-stacked: #E6EBF3; --on-team-plate: #13294B; --on-team-plate-muted: #4A5566; --strip-divider: #0E1A2D; --shell-edge: #2A3D5C; --row-alt: #1B2C48; --row-open: #1C2739;
+  --ink: #E6EBF3; --ink-muted: #A3B0C4; --rule: #6F8BB8;
+  --zone-better: #3F68A8; --zone-near: #1C2739; --zone-worse: #A4521C; --seq-0: #1E2B40; --seq-1: #2B4268; --seq-2: #44659A; --seq-3: #7C97C4; --seq-4: #D3DEEE; --on-seq-0: #E6EBF3; --on-seq-1: #E6EBF3; --on-seq-2: #FFFFFF; --on-seq-3: #0E1A2D; --on-seq-4: #0E1A2D;
+  --bar-pos: #C9D6EA; --bar-neg: #5C7397; --court-line: #8FA6CB; --court-floor: #0E1A2D; --focus: #8FB4EA; --control: #C9D6EA; --on-control: #0E1A2D; --control-track: #3A4D6B; --backdrop: rgb(0 0 0 / 0.6);
+}
