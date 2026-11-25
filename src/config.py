@@ -37,6 +37,10 @@ MIN_GAMES = 10   # players below this are hidden from the board
 COMP_FEATURES = ["porpag", "dporpag", "usg", "ts", "inches", "pos_num", "origin_level", "porpag_trend"]
 COMP_WEIGHTS  = [  2.0,      2.0,      1.0,  1.0,    1.5,     1.5,        1.0,            1.0          ]
 
+# Seasons the site export builds at once. Each worker loads every library and the full dataset, so this is capped
+# rather than one per core; GitHub's runners have 4 cores.
+EXPORT_WORKERS = 4
+
 # The player the Methodology page uses to show how comps are picked: a mid-major star who moved up to Illinois.
 METHODOLOGY_COMP_EXAMPLE = ("Marcus Domask", "Southern Illinois")
 

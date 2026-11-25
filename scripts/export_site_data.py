@@ -18,20 +18,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 import json
 import math
+import os
 import shutil
+from concurrent.futures import ProcessPoolExecutor
 from datetime import date
 
 import numpy as np
 import pandas as pd
 
 from src.config import (
-    APP_CONFIG_PATH, BOARD_EXPORT_COLS, COMP_FEATURES, METHODOLOGY_COMP_EXAMPLE, COMP_WEIGHTS, CV_N_FOLDS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
+    APP_CONFIG_PATH, BOARD_EXPORT_COLS, EXPORT_WORKERS, COMP_FEATURES, METHODOLOGY_COMP_EXAMPLE, COMP_WEIGHTS, CV_N_FOLDS, DATA_DIR, HIGH_MAJOR_CONFERENCES,
     HIST_PREDS_PATH, MODEL_SCORES_PATH, LOWER_IS_BETTER, MID_MAJOR_CONFERENCES, MIN_GAMES,
     PERCENTILE_COLS, PLAYER_SEASONS_PATH, PLAYER_STAT_COLS, SITE_DATA_DIR, TRAINING_PAIRS_PATH,
 )
 from src.model.scouting import (
-    FEATURE_LABELS, SHOT_ZONES, comp_pool, conf_tier, contributions, find_comps, project,
-    season_label, shot_zones, tier_levels, top_contributions,
+    FEATURE_LABELS, SHOT_ZONES, comp_pool, conf_tier, contributions, find_comps, find_comps_batch, project,
+    season_label, shot_zones, tier_levels,
 )
 from src.features.build import FEATURE_COLS
 from src.model.train import load_lgbm
@@ -72,6 +74,14 @@ def _write(path: Path, obj) -> int:
     return len(text.encode("utf-8"))
 
 
+def top_drivers(contribs: pd.DataFrame, n: int = 10) -> dict:
+    # Origin PRPG dominates by design; the page shows what else moves each projection, largest first.
+    c = contribs.drop(columns=["porpag"], errors="ignore")
+    vals, feats = c.to_numpy(), c.columns.to_numpy()
+    order = np.argsort(-np.abs(vals), axis=1, kind="stable")[:, :n]
+    return {idx: list(zip(feats[o], vals[i, o])) for i, (idx, o) in enumerate(zip(c.index, order))}
+
+
 def position_percentiles(board: pd.DataFrame) -> pd.DataFrame:
     # Mid-rank percentile within position: ties share the average of their ranks.
     out = pd.DataFrame(index=board.index)
@@ -98,10 +108,10 @@ def zone_averages(player_seasons: pd.DataFrame, season: int) -> dict:
     return out
 
 
-def prediction_vs_reality(row: pd.Series, career: pd.DataFrame, hist_preds: pd.DataFrame) -> dict | None:
+def prediction_vs_reality(stints: set, hp: pd.DataFrame | None) -> dict | None:
     # hist_preds has no player id, so require the origin team and season to be in this player's career.
-    stints = set(zip(career["team"], career["year"].astype(int)))
-    hp = hist_preds[hist_preds["player"] == row["player"]]
+    if hp is None:
+        return None
     hp = hp[[(t, int(s)) in stints for t, s in zip(hp["from_team"], hp["season"])]]
     if hp.empty:
         return None
@@ -191,7 +201,8 @@ def methodology(player_seasons, training_pairs, hist_preds, model, season, dest_
     }
 
 
-def export_season(season, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, out_dir) -> dict:
+def export_season(season, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, careers, hp_by_player,
+                  out_dir) -> dict:
     players = pd.read_parquet(DATA_DIR / f"players_{season}.parquet")
     tiers = tier_levels(players, dest_level)
     projected = project(players, tiers["High-Major"], model)
@@ -213,14 +224,15 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
     _write(season_dir / "zone_averages.json", zone_averages(player_seasons, season))
 
     contribs, bias = contributions(board, model)
-    pool = comp_pool(training_pairs, season)
-    careers = player_seasons.groupby("id")
+    # Whole-season steps; the loop below only assembles each player's file.
+    comps_by_row = find_comps_batch(board, comp_pool(training_pairs, season), hist_preds)
+    drivers = top_drivers(contribs)
     player_bytes = 0
-    for idx, row in board.iterrows():
+    for idx, row in zip(board.index, board.to_dict("records")):
         pid = int(row["id"])
-        career = careers.get_group(pid).sort_values("year") if pid in careers.groups else player_seasons.iloc[0:0]
-        top = top_contributions(contribs.loc[idx])
-        comps = find_comps(row, pool, hist_preds)
+        career, stints = careers.get(pid, ([], set()))
+        top = drivers[idx]
+        comps = comps_by_row[idx]
         zones = shot_zones(row)
         player_bytes += _write(season_dir / "players" / f"{pid}.json", {
             "id": pid,
@@ -237,15 +249,9 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
             "stats": {c: row.get(c) for c in PLAYER_STAT_COLS},
             "percentiles": {c: row[f"pct_{c}"] for c in PERCENTILE_COLS},
             "box": {s: {"current": row.get(s), "projected": row.get(f"projected_{s}")} for s in BOX_STATS},
-            "drivers": [
-                {"feature": f, "label": FEATURE_LABELS.get(f, f), "value": v} for f, v in top.items()
-            ],
+            "drivers": [{"feature": f, "label": FEATURE_LABELS.get(f, f), "value": v} for f, v in top],
             "zones": zones,
-            "career": [
-                {**{c: r.get(c) for c in CAREER_COLS}, "season_label": season_label(int(r["year"])),
-                 "tier": conf_tier(r["conf"])}
-                for _, r in career.iterrows()
-            ],
+            "career": career,
             "comps": [
                 {
                     **{k: c[k] for k in ["player", "from_team", "from_conf", "to_team", "to_conf", "dest_season",
@@ -256,15 +262,55 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
                     "link": {"id": int(c["id"]), "season": int(c["season"])}
                     if int(c["id"]) in on_board.get(int(c["season"]), ()) else None,
                 }
-                for c in comps.to_dict("records")
+                for c in comps
             ],
-            "prediction_vs_reality": prediction_vs_reality(row, career, hist_preds),
+            "prediction_vs_reality": prediction_vs_reality(stints, hp_by_player.get(row["player"])),
         })
 
     print(f"[export] {season}: {len(board)} players, board {board_bytes / 1024:.0f} KB, "
           f"player files {player_bytes / 1024 / 1024:.1f} MB")
     return {"season": season, "label": season_label(season), "players": len(board), "tiers": tiers,
             "board_bytes": board_bytes, "player_bytes": player_bytes}
+
+
+def load_inputs(app_config: dict) -> dict:
+    model = load_lgbm()
+    if model is None:
+        raise FileNotFoundError("Run scripts/run_pipeline.py to train the model first.")
+    player_seasons = pd.read_parquet(PLAYER_SEASONS_PATH)
+    hist_preds = pd.read_parquet(HIST_PREDS_PATH)
+
+    # Which players get a page in each season, so comps only link to pages that exist.
+    on_board = {}
+    for s in app_config["available_seasons"]:
+        p = pd.read_parquet(DATA_DIR / f"players_{s}.parquet", columns=["id", "g"])
+        on_board[s] = set(p.loc[p["g"] >= MIN_GAMES, "id"].astype(int))
+
+    # A player's career and saved predictions are the same in every season's export, so build them once.
+    careers = {}
+    ordered = player_seasons.sort_values("year")
+    for pid, r in zip(ordered["id"].astype(int), ordered[CAREER_COLS].to_dict("records")):
+        seasons_list, stints = careers.setdefault(pid, ([], set()))
+        seasons_list.append({**r, "season_label": season_label(int(r["year"])), "tier": conf_tier(r["conf"])})
+        stints.add((r["team"], int(r["year"])))
+
+    return {
+        "dest_level": app_config["default_dest_level"], "model": model, "player_seasons": player_seasons,
+        "training_pairs": pd.read_parquet(TRAINING_PAIRS_PATH), "hist_preds": hist_preds, "on_board": on_board,
+        "careers": careers, "hp_by_player": dict(tuple(hist_preds.groupby("player"))),
+    }
+
+
+# Seasons are independent, so each worker process loads the inputs once and exports whole seasons.
+_inputs: dict = {}
+
+
+def _init_worker(app_config: dict) -> None:
+    _inputs.update(load_inputs(app_config))
+
+
+def _export_season(season: int) -> dict:
+    return export_season(season, out_dir=SITE_DATA_DIR, **_inputs)
 
 
 def main() -> None:
@@ -274,28 +320,16 @@ def main() -> None:
 
     with open(APP_CONFIG_PATH) as f:
         app_config = json.load(f)
-    seasons = args.seasons or app_config["available_seasons"]
-    dest_level = app_config["default_dest_level"]
-
-    model = load_lgbm()
-    if model is None:
-        raise FileNotFoundError("Run scripts/run_pipeline.py to train the model first.")
-    player_seasons = pd.read_parquet(PLAYER_SEASONS_PATH)
-    training_pairs = pd.read_parquet(TRAINING_PAIRS_PATH)
-    hist_preds = pd.read_parquet(HIST_PREDS_PATH)
-
-    # Which players get a page in each season, so comps only link to pages that exist.
-    on_board = {}
-    for s in app_config["available_seasons"]:
-        p = pd.read_parquet(DATA_DIR / f"players_{s}.parquet", columns=["id", "g"])
-        on_board[s] = set(p.loc[p["g"] >= MIN_GAMES, "id"].astype(int))
+    seasons = sorted(args.seasons or app_config["available_seasons"])
 
     SITE_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    summaries = [
-        export_season(s, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, SITE_DATA_DIR)
-        for s in sorted(seasons)
-    ]
+    workers = min(len(seasons), EXPORT_WORKERS, os.cpu_count() or 1)
+    with ProcessPoolExecutor(workers, initializer=_init_worker, initargs=(app_config,)) as pool:
+        summaries = list(pool.map(_export_season, seasons))
 
+    inputs = load_inputs(app_config)
+    player_seasons, training_pairs, hist_preds = inputs["player_seasons"], inputs["training_pairs"], inputs["hist_preds"]
+    model, dest_level = inputs["model"], inputs["dest_level"]
     _write(SITE_DATA_DIR / "methodology.json",
            methodology(player_seasons, training_pairs, hist_preds, model, app_config["default_season"], dest_level))
 

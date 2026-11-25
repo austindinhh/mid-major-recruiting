@@ -112,43 +112,66 @@ def comp_pool(training_pairs: pd.DataFrame, current_season: int) -> pd.DataFrame
     ]
 
 
-def find_comps(
-    player_row: pd.Series,
+COMP_COLS = ["id", "player", "from_team", "from_conf", "to_team", "to_conf", "season",
+             "dest_season", "porpag", "projected_porpag", "actual_porpag"]
+
+
+def find_comps_batch(
+    players: pd.DataFrame,
     pool: pd.DataFrame,
     hist_preds: pd.DataFrame | None,
     n: int = 3,
-) -> pd.DataFrame:
+) -> dict:
     """
-    The n most similar completed upward-to-high-major transfers by weighted L2
-    distance on COMP_FEATURES, min-max normalised across the pool. A missing
-    porpag_trend is imputed to 0 (no prior season = neutral trend) so first-year
-    players stay in the pool.
+    The n most similar completed upward-to-high-major transfers for every row of `players`, keyed by row index,
+    by weighted L2 distance on COMP_FEATURES, min-max normalised across the pool. A player's own past moves are
+    left out of his pool. A missing porpag_trend is imputed to 0 (no prior season = neutral trend) so first-year
+    players stay in the pool. All distances are one matrix calculation instead of one pool pass per player.
     """
-    pool = pool[pool["player"] != player_row.get("player", "")].copy()
-
-    cols = [c for c in COMP_FEATURES if c in pool.columns and c in player_row.index]
+    cols = [c for c in COMP_FEATURES if c in pool.columns and c in players.columns]
     w = np.array([COMP_WEIGHTS[COMP_FEATURES.index(c)] for c in cols])
 
-    non_imputable = [c for c in cols if c != "porpag_trend"]
-    pool = pool.dropna(subset=non_imputable)
+    pool = pool.dropna(subset=[c for c in cols if c != "porpag_trend"]).copy()
     pool["porpag_trend"] = pool["porpag_trend"].fillna(0)
+    if pool.empty:  # the first season has no completed transfers to compare with
+        return {idx: [] for idx in players.index}
+    P = pool[cols].to_numpy(float)
+    names = pool["player"].to_numpy()
 
-    mins = pool[cols].min()
-    maxs = pool[cols].max()
-    rng = (maxs - mins).replace(0, 1)
-    pool_scaled = (pool[cols] - mins) / rng
+    def ranges(rows: np.ndarray) -> np.ndarray:
+        r = rows.max(axis=0) - rows.min(axis=0)
+        return np.where(r == 0, 1.0, r)
 
-    target = pd.to_numeric(player_row[cols], errors="coerce").fillna(0)
-    target_scaled = (target - mins) / rng
+    # The min cancels in (p - min)/range - (t - min)/range, so only the range matters. It is the pool's range,
+    # except for a player with past moves in the pool, whose range leaves those moves out.
+    T = players[cols].apply(pd.to_numeric, errors="coerce").fillna(0).to_numpy(float)
+    R = np.tile(ranges(P), (len(players), 1))
+    own = np.zeros((len(players), len(pool)), dtype=bool)
+    for i, name in enumerate(players["player"].to_numpy()):
+        mine = names == name
+        if mine.any():
+            own[i] = mine
+            if not mine.all():
+                R[i] = ranges(P[~mine])
 
-    pool["_dist"] = np.sqrt((w * (pool_scaled - target_scaled) ** 2).sum(axis=1))
+    dist = np.sqrt(sum(w[k] * ((P[None, :, k] - T[:, None, k]) / R[:, k, None]) ** 2 for k in range(len(cols))))
+    dist[own] = np.inf
 
     # One row per origin season can feed the same destination; keep the closest per transfer.
-    pool = pool.sort_values("_dist").drop_duplicates(subset=["player", "dest_season"], keep="first")
-    nearest = pool.nsmallest(n, "_dist")
+    keys = list(zip(names, pool["dest_season"].to_numpy()))
+    picks, owners = [], []
+    for i, row in enumerate(dist):
+        seen = set()
+        for j in np.argsort(row, kind="stable"):
+            if not np.isfinite(row[j]) or len(seen) == n:
+                break
+            if keys[j] not in seen:
+                seen.add(keys[j])
+                picks.append(j)
+                owners.append(players.index[i])
 
+    nearest = pool.iloc[picks].assign(_owner=owners, actual_porpag=lambda d: d["target"])
     # projected_porpag only exists for out-of-fold predictions (dest_season >= 2020).
-    nearest["actual_porpag"] = nearest["target"]
     if hist_preds is not None:
         nearest = nearest.merge(
             hist_preds[["player", "season", "dest_season", "projected_porpag"]],
@@ -158,8 +181,15 @@ def find_comps(
     else:
         nearest["projected_porpag"] = np.nan
 
-    return nearest[["id", "player", "from_team", "from_conf", "to_team", "to_conf", "season",
-                    "dest_season", "porpag", "projected_porpag", "actual_porpag"]].reset_index(drop=True)
+    out = {idx: [] for idx in players.index}
+    for owner, rec in zip(nearest["_owner"], nearest[COMP_COLS].to_dict("records")):
+        out[owner].append(rec)
+    return out
+
+
+def find_comps(player_row: pd.Series, pool: pd.DataFrame, hist_preds: pd.DataFrame | None, n: int = 3) -> pd.DataFrame:
+    comps = find_comps_batch(player_row.to_frame().T, pool, hist_preds, n)[player_row.name]
+    return pd.DataFrame(comps, columns=COMP_COLS)
 
 
 def shot_zones(player_row: pd.Series) -> dict | None:
