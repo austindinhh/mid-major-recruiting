@@ -33,7 +33,7 @@ export function ConferencePicker({ available, midMajors, selected, onChange }: P
         type="search" className={styles.confSearch} placeholder="Search conferences" aria-label="Search conferences"
         value={query} onChange={(e) => setQuery(e.target.value)}
       />
-      {groups.length === 0 && <p className={styles.muted}>No conference matches "{query}".</p>}
+      {groups.length === 0 && <p className={styles.muted}>{query.trim() ? `No conference matches "${query}".` : "No conferences on this board yet."}</p>}
       {groups.map((g) => {
         const allOn = g.codes.every((c) => selected.includes(c));
         return (

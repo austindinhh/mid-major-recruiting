@@ -60,7 +60,7 @@ function Controls({ seasons, season, onSeason, filters, onFilters, currentQuery,
       <label className={styles.field}>
         <span className={styles.label}>Season</span>
         <select className={styles.select} value={season} onChange={(e) => onSeason(Number(e.target.value))}>
-          {seasons.map((s) => <option key={s.season} value={s.season}>{s.label}</option>)}
+          {seasons.map((s) => <option key={s.season} value={s.season}>{s.in_progress ? `${s.label} (in progress)` : s.label}</option>)}
         </select>
       </label>
 

@@ -211,9 +211,8 @@ export function MethodologyPage() {
       }>
         <p>
           Every stat comes from <a href="https://barttorvik.com">BartTorvik</a>: player box score and advanced stats, shot
-          zones, and team ratings. Older seasons come through the{" "}
-          <a href="https://github.com/andreweatherman/toRvik-data">toRvik-data</a> archive, and the latest seasons are pulled
-          from BartTorvik's site directly.
+          zones, and team ratings, downloaded from the CSV files on his site. The current season's numbers update as
+          games are played.
         </p>
         <p>
           A transfer is the same player showing up at a different D1 school one or two seasons later, with stats at both.

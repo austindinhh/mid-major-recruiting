@@ -12,7 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import json
 import pandas as pd
-from src.config import APP_CONFIG_PATH, DATA_DIR, HIGH_MAJOR_CONFERENCES, HIST_PREDS_PATH, LAST_SEASON
+from src.config import (
+    APP_CONFIG_PATH, DATA_DIR, DEFAULT_SEASON, HIGH_MAJOR_CONFERENCES, HIST_PREDS_PATH, LAST_SEASON, SEASON_IN_PROGRESS,
+)
 from src.data.fetch import fetch_player_seasons, fetch_teams
 from src.features.build import build_player_features
 from src.model.predict import project_players, get_target_level, project_box_stats
@@ -30,7 +32,7 @@ def _save_players(players: pd.DataFrame, season: int) -> int:
 
 
 def generate_boards(
-    season: int = LAST_SEASON,
+    season: int = DEFAULT_SEASON,
     players: pd.DataFrame | None = None,
     teams: pd.DataFrame | None = None,
 ) -> None:
@@ -106,10 +108,11 @@ def main() -> None:
     for season in available_seasons:
         generate_boards(season=season, players=players, teams=teams)
 
-    default_level = get_target_level(teams, LAST_SEASON)
+    default_level = get_target_level(teams, DEFAULT_SEASON)
     app_cfg = {
         "default_dest_level": round(default_level, 4),
-        "default_season": LAST_SEASON,
+        "default_season": DEFAULT_SEASON,
+        "in_progress_season": LAST_SEASON if SEASON_IN_PROGRESS else None,
         "available_seasons": available_seasons,
     }
     with open(APP_CONFIG_PATH, "w") as f:

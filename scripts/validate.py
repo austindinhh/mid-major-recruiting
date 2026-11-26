@@ -132,7 +132,7 @@ def validate_models() -> bool:
 def validate_boards() -> bool:
     import json
     import pandas as pd
-    from src.config import APP_CONFIG_PATH, DATA_DIR, HIGH_MAJOR_CONFERENCES, LAST_SEASON
+    from src.config import APP_CONFIG_PATH, DATA_DIR, DEFAULT_SEASON, HIGH_MAJOR_CONFERENCES
 
     print("Scouting board")
     ok = True
@@ -144,7 +144,7 @@ def validate_boards() -> bool:
         missing = [s for s in seasons if not (DATA_DIR / f"players_{s}.parquet").exists()]
         ok &= _check(f"player file for every available season (missing {missing})", not missing)
 
-    path = DATA_DIR / f"players_{LAST_SEASON}.parquet"
+    path = DATA_DIR / f"players_{DEFAULT_SEASON}.parquet"
     ok &= _check(f"{path.name} exists", path.exists())
     if not path.exists():
         return ok
@@ -160,7 +160,7 @@ def validate_boards() -> bool:
     top1 = players.loc[players["projected_porpag"].idxmax()]
     print(f"\n  Top projection: {top1['player']} ({top1['team']}, {top1['conf']}) "
           f"projected={top1['projected_porpag']:.2f}")
-    print(f"  {LAST_SEASON} players: {len(players)}")
+    print(f"  {DEFAULT_SEASON} players: {len(players)}")
     return ok
 
 STEPS = {

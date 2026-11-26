@@ -202,7 +202,7 @@ def methodology(player_seasons, training_pairs, hist_preds, model, season, dest_
 
 
 def export_season(season, dest_level, model, player_seasons, training_pairs, hist_preds, on_board, careers, hp_by_player,
-                  out_dir) -> dict:
+                  in_progress, out_dir) -> dict:
     players = pd.read_parquet(DATA_DIR / f"players_{season}.parquet")
     tiers = tier_levels(players, dest_level)
     projected = project(players, tiers["High-Major"], model)
@@ -222,6 +222,11 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
         "rows": board[cols].to_numpy().tolist(),
     })
     _write(season_dir / "zone_averages.json", zone_averages(player_seasons, season))
+    summary = {"season": season, "label": season_label(season), "players": len(board), "tiers": tiers,
+               "in_progress": season == in_progress, "board_bytes": board_bytes}
+    if board.empty:  # a season in progress before anyone has played MIN_GAMES
+        print(f"[export] {season}: no players with {MIN_GAMES}+ games yet")
+        return {**summary, "player_bytes": 0}
 
     contribs, bias = contributions(board, model)
     # Whole-season steps; the loop below only assembles each player's file.
@@ -269,8 +274,7 @@ def export_season(season, dest_level, model, player_seasons, training_pairs, his
 
     print(f"[export] {season}: {len(board)} players, board {board_bytes / 1024:.0f} KB, "
           f"player files {player_bytes / 1024 / 1024:.1f} MB")
-    return {"season": season, "label": season_label(season), "players": len(board), "tiers": tiers,
-            "board_bytes": board_bytes, "player_bytes": player_bytes}
+    return {**summary, "player_bytes": player_bytes}
 
 
 def load_inputs(app_config: dict) -> dict:
@@ -298,6 +302,7 @@ def load_inputs(app_config: dict) -> dict:
         "dest_level": app_config["default_dest_level"], "model": model, "player_seasons": player_seasons,
         "training_pairs": pd.read_parquet(TRAINING_PAIRS_PATH), "hist_preds": hist_preds, "on_board": on_board,
         "careers": careers, "hp_by_player": dict(tuple(hist_preds.groupby("player"))),
+        "in_progress": app_config["in_progress_season"],
     }
 
 
@@ -339,7 +344,7 @@ def main() -> None:
     entries = {}
     if args.seasons and seasons_path.exists():
         entries = {e["season"]: e for e in json.loads(seasons_path.read_text(encoding="utf-8"))["seasons"]}
-    entries.update({s["season"]: {k: s[k] for k in ("season", "label", "players", "tiers")} for s in summaries})
+    entries.update({s["season"]: {k: s[k] for k in ("season", "label", "players", "tiers", "in_progress")} for s in summaries})
     _write(seasons_path, {
         "generated": date.today().isoformat(),
         "default_season": app_config["default_season"],

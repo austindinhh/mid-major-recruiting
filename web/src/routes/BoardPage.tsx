@@ -81,8 +81,11 @@ export function BoardPage() {
         <h1>{entry ? `${entry.label} Board` : "Board"}</h1>
         <InfoButton label="the board">
           <p className="def-p">Every D1 player outside the high-majors with at least {seasons?.min_games ?? 10} games, ranked by projected PRPG at a Big Ten school. Select a player for his summary.</p>
+          {entry?.in_progress && <p className="def-p">This season is still being played. Players join the board once they reach {seasons?.min_games ?? 10} games, and their stats update as games are played.</p>}
+          {rows?.length !== 0 && <>
           <p className="def-p">Change is his projected PRPG minus his current PRPG.</p>
           <p className="def-p">Stat shading shows his percentile among players at his position, using the key above the table. Hover a stat for its exact percentile. TO% is flipped: blue means few turnovers. Players under {MIN_FGA} shot attempts sort last on TS% and FTR, and players under {MIN_MPG} minutes a game sort last on the other rate stats.</p>
+          </>}
         </InfoButton>
         {rows && shown && (
           <p className={styles.count} aria-live="polite">
@@ -113,7 +116,13 @@ export function BoardPage() {
       )}
 
       {!failure && !shown && (compact ? <BoardListSkeleton /> : <BoardTableSkeleton />)}
-      {shown && shown.length === 0 && (
+      {rows && rows.length === 0 && entry?.in_progress && (
+        <div className={styles.empty} role="status">
+          <p><b>No one has played {seasons?.min_games ?? 10} games yet this season.</b></p>
+          <p>Players join the board once they reach {seasons?.min_games ?? 10} games.</p>
+        </div>
+      )}
+      {shown && shown.length === 0 && !(rows?.length === 0 && entry?.in_progress) && (
         <div className={styles.empty} role="status">
           <p><b>No players match these filters.</b></p>
           {suggestion && (

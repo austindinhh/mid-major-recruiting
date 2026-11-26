@@ -5,6 +5,7 @@ export interface SeasonEntry {
   label: string;
   players: number;
   tiers: Record<Tier, number>;
+  in_progress?: boolean;
 }
 
 export interface SeasonsFile {

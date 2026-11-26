@@ -1,13 +1,11 @@
 """
-Fetches player-seasons, derived transfer pairs, and team ratings.
+Fetches player-seasons, team ratings and derived transfer pairs, all straight from BartTorvik.
 
-Primary source: toRvik-data GitHub repository (static parquet/CSV files,
-current through 2023). For years 2024+, falls back to direct BartTorvik
-scrape using the public CSV endpoints.
+  getadvstats.php?year=Y&csv=1   one row per player-season, no header (layout below)
+  Y_team_results.csv             one row per team-season, with a header
 
-The live toRvik API (api.cbbstat.com) is no longer resolving.
-Transfers are reconstructed by detecting year-over-year team changes for
-the same player ID in the player season table.
+Both cover every season in FIRST_SEASON..LAST_SEASON and update daily during the current one. Transfers are
+reconstructed by detecting team changes for the same player id across seasons.
 """
 
 import io
@@ -17,7 +15,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import (
-    TORVIK_DATA_BASE,
+    BARTTORVIK_BASE,
     FIRST_SEASON,
     LAST_SEASON,
     PLAYER_SEASONS_PATH,
@@ -29,12 +27,10 @@ from .cache import load, save
 
 _SESSION = requests.Session()
 _SESSION.headers.update({"User-Agent": "mid-major-recruiting-research/0.1"})
-_RATE_LIMIT_DELAY = 0.3
+_RATE_LIMIT_DELAY = 10  # barttorvik.com robots.txt asks for Crawl-Delay: 10
 
-# ---------------------------------------------------------------------------
-# Column mapping: BartTorvik getadvstats.php CSV (67 cols, no header)
-# Verified by cross-correlation against the toRvik-data 2023 parquet.
-# ---------------------------------------------------------------------------
+# Column positions in getadvstats.php, the same for every season from 2010. The file now has
+# 79 columns; 67-78 are not read.
 _BT_PLAYER_COL_MAP = {
     0:  "player",
     1:  "team",
@@ -101,7 +97,12 @@ _BT_PLAYER_COL_MAP = {
     64: "pos",
     # 65: FTM/FGA (non-standard, not needed) — skip
     # 66: birthdate — skip
+    # 67-78: newer additions — skip
 }
+
+
+_TEAM_COLS = {"team": "team", "conf": "conf", "barthag": "barthag", "adjoe": "adj_o",
+              "adjde": "adj_d", "adjt": "adj_t", "WAB": "wab"}
 
 
 def _normalize_teams(df: pd.DataFrame) -> pd.DataFrame:
@@ -109,11 +110,11 @@ def _normalize_teams(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _get_bytes(url: str) -> bytes:
-    resp = _SESSION.get(url, timeout=30)
+def _get_text(url: str) -> str:
+    resp = _SESSION.get(url, timeout=60)
     resp.raise_for_status()
     time.sleep(_RATE_LIMIT_DELAY)
-    return resp.content
+    return resp.text
 
 
 def _hgt_to_inches(hgt_series: pd.Series) -> pd.Series:
@@ -127,181 +128,68 @@ def _hgt_to_inches(hgt_series: pd.Series) -> pd.Series:
     return hgt_series.apply(_parse)
 
 
-def _fetch_player_season_direct(year: int) -> pd.DataFrame:
-    """
-    Scrapes one season of player stats from BartTorvik's public CSV endpoint.
-    Returns a DataFrame matching the schema of player_seasons.parquet.
-    """
-    url = f"https://barttorvik.com/getadvstats.php?year={year}&conyes=0&csv=1"
-    resp = _SESSION.get(url, timeout=30)
-    resp.raise_for_status()
-    time.sleep(_RATE_LIMIT_DELAY)
-
-    raw = pd.read_csv(io.StringIO(resp.text), header=None)
-    if raw.shape[1] < 65:
+def _fetch_player_season(year: int) -> pd.DataFrame:
+    text = _get_text(f"{BARTTORVIK_BASE}/getadvstats.php?year={year}&conyes=0&csv=1")
+    raw = pd.read_csv(io.StringIO(text), header=None)
+    if raw.shape[1] < 67:
         raise ValueError(f"Unexpected column count ({raw.shape[1]}) for year {year}")
 
-    # Select and rename mapped columns
-    keep = {k: v for k, v in _BT_PLAYER_COL_MAP.items() if k < raw.shape[1]}
-    df = raw[list(keep.keys())].rename(columns=keep)
-
-    # Derived columns
-    df["inches"] = _hgt_to_inches(df["hgt"])
-    df["fgm"] = pd.to_numeric(df["two_m"], errors="coerce").fillna(0) + \
-                pd.to_numeric(df["three_m"], errors="coerce").fillna(0)
-    df["fga"] = pd.to_numeric(df["two_a"], errors="coerce").fillna(0) + \
-                pd.to_numeric(df["three_a"], errors="coerce").fillna(0)
-    df["fg_pct"] = np.where(df["fga"] > 0, df["fgm"] / df["fga"], np.nan)
-
-    # Coerce numeric columns
+    df = raw[list(_BT_PLAYER_COL_MAP)].rename(columns=_BT_PLAYER_COL_MAP)
     for col in df.columns:
         if col not in ("player", "team", "conf", "exp", "hgt", "pos"):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # Fill any parquet columns missing from this endpoint with NaN
-    for col in ["tov"]:
-        if col not in df.columns:
-            df[col] = np.nan
-
+    df["inches"] = _hgt_to_inches(df["hgt"])
+    df["fgm"] = df["two_m"].fillna(0) + df["three_m"].fillna(0)
+    df["fga"] = df["two_a"].fillna(0) + df["three_a"].fillna(0)
+    df["fg_pct"] = np.where(df["fga"] > 0, df["fgm"] / df["fga"], np.nan)
     return df
 
 
-def _bypass_js_and_get(url: str) -> str:
-    """
-    BartTorvik serves some pages behind a trivial JS challenge.
-    POST with js_test_submitted=1 sets the bypass cookie; the session
-    retains it for the subsequent GET.
-    """
-    _SESSION.post(url, data={"js_test_submitted": "1"}, timeout=30)
-    time.sleep(_RATE_LIMIT_DELAY)
-    resp = _SESSION.get(url, timeout=30)
-    resp.raise_for_status()
-    time.sleep(_RATE_LIMIT_DELAY)
-    return resp.text
+def _fetch_team_season(year: int) -> pd.DataFrame:
+    text = _get_text(f"{BARTTORVIK_BASE}/{year}_team_results.csv")
+    # Before 2023 the header quotes "Fun Rk, adjt" as one field, leaving it a name short of the data.
+    names = [n.strip() for n in text.split("\n", 1)[0].replace('"', "").split(",")]
+    names = [f"{n}_{i}" if n in names[:i] else n for i, n in enumerate(names)]  # "rank" appears twice
+    raw = pd.read_csv(io.StringIO(text), header=None, skiprows=1, names=names)
+    missing = set(_TEAM_COLS) - set(raw.columns)
+    if missing:
+        raise ValueError(f"team_results {year} is missing columns {sorted(missing)}")
 
-
-def _fetch_team_season_direct(year: int, player_seasons: pd.DataFrame | None = None) -> pd.DataFrame:
-    """
-    Scrapes one season of team ratings from BartTorvik's trank page.
-    Returns a DataFrame matching the schema of teams.parquet.
-
-    Conference assignments are derived from player_seasons when provided
-    (each player row has team + conf), since trank CSV doesn't include conf.
-    """
-    url = f"https://barttorvik.com/trank.php?year={year}&csv=1"
-    text = _bypass_js_and_get(url)
-
-    raw = pd.read_csv(io.StringIO(text), header=None)
-    if raw.shape[1] < 35:
-        raise ValueError(f"Unexpected column count ({raw.shape[1]}) in trank for year {year}")
-
-    df = raw[[0, 1, 2, 3, 15, 34]].rename(columns={
-        0:  "team",
-        1:  "adj_o",
-        2:  "adj_d",
-        3:  "barthag",
-        15: "adj_t",
-        34: "wab",
-    })
-    df["year"] = year
-
-    # Conference: derive from player_seasons if available, else NaN
-    if player_seasons is not None:
-        ps_year = player_seasons[player_seasons["year"] == year]
-        team_conf = (
-            ps_year.groupby("team")["conf"]
-            .agg(lambda s: s.mode().iloc[0] if not s.empty else np.nan)
-            .reset_index()
-        )
-        df = df.merge(team_conf, on="team", how="left")
-    else:
-        df["conf"] = np.nan
-
-    # ov_cur_sos: not available in trank CSV; set NaN so LightGBM handles it
-    df["ov_cur_sos"] = np.nan
-
-    # Coerce numeric columns
-    for col in ["adj_o", "adj_d", "barthag", "adj_t", "wab"]:
+    df = raw[list(_TEAM_COLS)].rename(columns=_TEAM_COLS)
+    for col in ["barthag", "adj_o", "adj_d", "adj_t", "wab"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    # Add rank columns expected by parquet schema (filled with NaN)
-    for col in ["barthag_rk", "adj_o_rk", "adj_d_rk", "adj_t_rk",
-                "nc_elite_sos", "nc_fut_sos", "nc_cur_sos",
-                "ov_elite_sos", "ov_fut_sos", "seed"]:
-        df[col] = np.nan
-
+    df["year"] = year
     return df
 
 
-def fetch_player_seasons(force: bool = False) -> pd.DataFrame:
-    if not force:
-        cached = load(PLAYER_SEASONS_PATH)
-        if cached is not None:
-            return _normalize_teams(cached)
+def _fetch_seasons(path, fetch_one, what: str, refresh: list[int] | None) -> pd.DataFrame:
+    """Cached table of every season; downloads the `refresh` years again, or all of them if nothing is cached."""
+    cached = load(path)
+    if cached is not None and not refresh:
+        return _normalize_teams(cached)
 
-    print("[fetch] Downloading player season stats from toRvik-data...")
-    url = f"{TORVIK_DATA_BASE}/player_season/all.parquet"
-    raw = _get_bytes(url)
-    df = pd.read_parquet(io.BytesIO(raw))
+    years = list(range(FIRST_SEASON, LAST_SEASON + 1)) if cached is None else sorted(refresh)
+    span = str(years[0]) if len(years) == 1 else f"{years[0]}-{years[-1]}"
+    print(f"[fetch] Downloading {what} from BartTorvik for {span}...")
+    frames = [] if cached is None else [cached[~cached["year"].isin(years)]]
+    for year in years:
+        frame = fetch_one(year)
+        frames.append(frame)
+        print(f"  year {year}: {len(frame)} rows")
 
-    # The combined all.parquet may lag a season; fetch any missing years
-    latest = int(df["year"].max())
-    for year in range(latest + 1, LAST_SEASON + 1):
-        url_year = f"{TORVIK_DATA_BASE}/player_season/{year}/all_{year}.parquet"
-        try:
-            raw_year = _get_bytes(url_year)
-            frame = pd.read_parquet(io.BytesIO(raw_year))
-            df = pd.concat([df, frame], ignore_index=True)
-            print(f"  appended year {year} from GitHub: {len(frame)} players")
-        except requests.HTTPError:
-            # GitHub doesn't have this year — fall back to direct BartTorvik scrape
-            try:
-                frame = _fetch_player_season_direct(year)
-                df = pd.concat([df, frame], ignore_index=True)
-                print(f"  appended year {year} from BartTorvik: {len(frame)} players")
-            except Exception as exc:
-                print(f"  year {year}: skipped ({exc})")
-                break
-
-    df = _normalize_teams(df[df["year"] >= FIRST_SEASON].reset_index(drop=True))
-    print(f"[fetch] {len(df):,} player-seasons loaded (years {FIRST_SEASON}-{int(df['year'].max())})")
-
-    save(df, PLAYER_SEASONS_PATH)
+    df = _normalize_teams(pd.concat(frames, ignore_index=True).sort_values("year", kind="stable", ignore_index=True))
+    print(f"[fetch] {len(df):,} {what} rows loaded")
+    save(df, path)
     return df
 
 
-def fetch_teams(force: bool = False) -> pd.DataFrame:
-    if not force:
-        cached = load(TEAMS_PATH)
-        if cached is not None:
-            return _normalize_teams(cached)
+def fetch_player_seasons(refresh: list[int] | None = None) -> pd.DataFrame:
+    return _fetch_seasons(PLAYER_SEASONS_PATH, _fetch_player_season, "player-seasons", refresh)
 
-    print("[fetch] Downloading team ratings from toRvik-data...")
-    frames = []
-    for year in range(FIRST_SEASON, LAST_SEASON + 1):
-        url = f"{TORVIK_DATA_BASE}/ratings/ratings_{year}.csv"
-        try:
-            raw = _get_bytes(url)
-            frame = pd.read_csv(io.BytesIO(raw))
-            if frame.columns[0].startswith("Unnamed") or frame.columns[0] == "":
-                frame = frame.drop(columns=frame.columns[0])
-            frames.append(frame)
-            print(f"  year {year}: {len(frame)} teams")
-        except requests.HTTPError as exc:
-            # GitHub doesn't have this year — fall back to direct BartTorvik scrape
-            try:
-                # Load player seasons from cache to derive conference assignments
-                ps_cached = load(PLAYER_SEASONS_PATH)
-                frame = _fetch_team_season_direct(year, player_seasons=ps_cached)
-                frames.append(frame)
-                print(f"  year {year}: {len(frame)} teams (BartTorvik direct)")
-            except Exception as e2:
-                print(f"  year {year}: skipped ({exc}; then {e2})")
 
-    df = _normalize_teams(pd.concat(frames, ignore_index=True))
-    print(f"[fetch] {len(df):,} team-seasons loaded")
-    save(df, TEAMS_PATH)
-    return df
+def fetch_teams(refresh: list[int] | None = None) -> pd.DataFrame:
+    return _fetch_seasons(TEAMS_PATH, _fetch_team_season, "team-seasons", refresh)
 
 
 def fetch_transfers(force: bool = False) -> pd.DataFrame:

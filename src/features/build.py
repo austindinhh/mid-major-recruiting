@@ -9,7 +9,7 @@ Feature engineering and training pair construction.
 import numpy as np
 import pandas as pd
 
-from ..config import TARGET_METRIC, TRAINING_PAIRS_PATH
+from ..config import LAST_SEASON, SEASON_IN_PROGRESS, TARGET_METRIC, TRAINING_PAIRS_PATH
 
 # Exact column names as they appear after feature engineering
 FEATURE_COLS = [
@@ -162,6 +162,10 @@ def build_transfer_pairs(
         **{s: f"dest_{s}" for s in _dest_box_stats},
     })
     pairs = pairs.merge(dest, on=["id", "dest_season"], how="inner")
+    if SEASON_IN_PROGRESS:
+        partial = pairs["dest_season"] == LAST_SEASON
+        print(f"[features] leaving out {partial.sum():,} transfers into {LAST_SEASON}, still in progress")
+        pairs = pairs[~partial].reset_index(drop=True)
 
     n_up = (pairs["destination_level"] > pairs["origin_level"]).sum()
     n_lat = (pairs["destination_level"] == pairs["origin_level"]).sum()

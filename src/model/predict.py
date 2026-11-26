@@ -4,7 +4,7 @@ Inference: project current-season non-high-major players to a target competition
 
 import pandas as pd
 
-from ..config import HIGH_MAJOR_CONFERENCES, LAST_SEASON
+from ..config import DEFAULT_SEASON, HIGH_MAJOR_CONFERENCES
 from ..features.build import FEATURE_COLS
 from .train import load_lgbm, load_stat_models
 
@@ -21,7 +21,7 @@ def get_target_level(teams: pd.DataFrame, season: int) -> float:
 def project_players(
     players: pd.DataFrame,
     teams: pd.DataFrame,
-    season: int = LAST_SEASON,
+    season: int = DEFAULT_SEASON,
     destination_level: float | None = None,
 ) -> pd.DataFrame:
     """

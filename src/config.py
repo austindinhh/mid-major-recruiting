@@ -12,11 +12,13 @@ APP_CONFIG_PATH = DATA_DIR / "app_config.json"
 HIST_PREDS_PATH = DATA_DIR / "historical_predictions.parquet"
 
 # Data source
-# The live toRvik API (api.cbbstat.com) is no longer resolving; all data is
-# served as static files from the companion GitHub repo instead.
-TORVIK_DATA_BASE = "https://raw.githubusercontent.com/andreweatherman/toRvik-data/main"
+BARTTORVIK_BASE = "https://barttorvik.com"
 FIRST_SEASON = 2012   # 2011-12 season; earliest year used for training pairs
-LAST_SEASON = 2026    # extended via direct BartTorvik scrape for 2024-2026
+LAST_SEASON = 2027    # 2026-27 season
+# True while LAST_SEASON is still being played. Its stats then stay out of training (a transfer isn't
+# judged on a handful of games) and the site opens on the season before. Set False once it's final.
+SEASON_IN_PROGRESS = True
+DEFAULT_SEASON = LAST_SEASON - 1 if SEASON_IN_PROGRESS else LAST_SEASON
 
 # Model
 TARGET_METRIC = "porpag"
@@ -61,7 +63,7 @@ PLAYER_STAT_COLS = [
     "ast", "to", "ftr", "oreb_rate", "dreb_rate", "stl", "blk", "ft_pct",
 ]
 
-# Actual abbreviations used in the toRvik dataset
+# Conference codes as BartTorvik writes them
 HIGH_MAJOR_CONFERENCES = {"ACC", "B10", "B12", "BE", "P12", "SEC"}
 MID_MAJOR_CONFERENCES  = {"A10", "Amer", "MWC", "WCC", "MAC", "CUSA", "MVC", "CAA", "Horz", "SB", "WAC"}
 
